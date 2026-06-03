@@ -495,11 +495,18 @@ function renderPositions(positions) {
       ? `<div class="p2p-pos-ladder">↗ ${pos.ladder.map(s => escapeHtml(s.title)).join(' → ')}</div>`
       : '';
 
+    // Surface the first MQ line as a preview so qualifications are visible
+    // without the user having to expand the details disclosure. Full text
+    // still lives inside the <details> for students who want to read it all.
+    const mqPreview = pos.mqs_text
+      ? pos.mqs_text.split(/\r?\n/).map(s => s.trim()).find(s => s.length > 0) || ''
+      : '';
     const mqsHtml = pos.mqs_text
-      ? `<details class="p2p-pos-mqs">
-          <summary>Minimum qualifications</summary>
-          <pre>${escapeHtml(pos.mqs_text)}</pre>
-        </details>`
+      ? `<div class="p2p-pos-mq-preview">${escapeHtml(mqPreview)}</div>
+         <details class="p2p-pos-mqs">
+           <summary>Full minimum qualifications</summary>
+           <pre>${escapeHtml(pos.mqs_text)}</pre>
+         </details>`
       : '';
 
     card.innerHTML = `

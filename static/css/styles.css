@@ -1894,9 +1894,21 @@ select:disabled {
     line-height: 1.4;
 }
 
+.p2p-pos-mq-preview {
+    font-size: 0.7rem;
+    color: var(--p2p-ink-m);
+    line-height: 1.4;
+    margin: 0.3rem 0 0.2rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .p2p-pos-mqs {
     font-size: 0.7rem;
-    margin: 0.3rem 0;
+    margin: 0.2rem 0 0.3rem;
 }
 
 .p2p-pos-mqs summary {
