@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Find local jobs that match your CTE career training in San Bernardino.">
-    <title>CTE Job Dashboard — San Bernardino</title>
+    <meta name="description" content="San Bernardino County entry-level career paths tied to high school CTE programs.">
+    <title>CTE Career Dashboard — San Bernardino County</title>
 
     <!-- Leaflet CSS — free map, no API key needed -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -24,8 +24,8 @@
         <header id="site-header">
             <div id="header-inner">
                 <div id="header-text">
-                    <h1>CTE Job Dashboard</h1>
-                    <p>Find local jobs that match your career training.</p>
+                    <h1>CTE Career Dashboard</h1>
+                    <p>San Bernardino County entry-level positions tied to your CTE pathway.</p>
                 </div>
                 <div id="header-badge">
                     <span>San Bernardino County</span>
@@ -115,7 +115,7 @@
         ========================= -->
         <div id="loading" hidden aria-live="polite">
             <div class="spinner"></div>
-            <p>Finding jobs near San Bernardino...</p>
+            <p>Loading county career opportunities...</p>
         </div>
 
         <!-- ========================
@@ -124,7 +124,7 @@
         <section id="results-section" hidden aria-label="Job results" aria-live="polite">
 
             <div id="results-header">
-                <h2 id="results-heading">Job Results</h2>
+                <h2 id="results-heading">County career opportunities</h2>
                 <span id="results-count"></span>
             </div>
 
@@ -144,9 +144,9 @@
             <div id="no-results" hidden>
                 <div class="state-box">
                     <span class="state-icon">🔍</span>
-                    <h3>No listings found right now</h3>
-                    <p>There are no current federal job postings for this pathway in the San Bernardino area.</p>
-                    <p><strong>Speak with your counselor</strong> for current local and private employer opportunities.</p>
+                    <h3>No county positions tied to this pathway yet</h3>
+                    <p>The county catalog does not currently list entry-level classifications mapped to this pathway.</p>
+                    <p><strong>Speak with your counselor</strong> for guidance on related opportunities.</p>
                 </div>
             </div>
 
@@ -154,9 +154,9 @@
             <div id="api-unavailable" hidden>
                 <div class="state-box state-box--warn">
                     <span class="state-icon">⚠️</span>
-                    <h3>Live listings temporarily unavailable</h3>
-                    <p>The job listings service is not responding right now.</p>
-                    <p><strong>Please speak with your counselor</strong> for current opportunities.</p>
+                    <h3>Catalog temporarily unavailable</h3>
+                    <p>The position catalog is not responding right now.</p>
+                    <p><strong>Please speak with your counselor</strong> for guidance.</p>
                 </div>
             </div>
 
@@ -166,8 +166,8 @@
              FOOTER
         ========================= -->
         <footer id="site-footer">
-            <p>Job listings sourced from <a href="https://www.usajobs.gov" target="_blank" rel="noopener">USAJobs.gov</a>. Data refreshed daily.</p>
-            <p>For help finding opportunities, speak with your school counselor.</p>
+            <p>Position catalog provided by the <strong>County of San Bernardino</strong>. Current openings posted at <a href="https://www.governmentjobs.com/careers/sbcounty" target="_blank" rel="noopener">governmentjobs.com/careers/sbcounty</a>.</p>
+            <p>For help mapping a CTE pathway to a career, speak with your school counselor.</p>
         </footer>
 
     </div><!-- /#app -->

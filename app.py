@@ -15,6 +15,7 @@ from routes.schools  import schools_bp
 from routes.pathways import pathways_bp
 from routes.careers  import careers_bp
 from routes.jobs     import jobs_bp
+from routes.programs import programs_bp
 
 def create_app():
     """Create and configure the Flask application, register blueprints, and return the app instance."""
@@ -25,6 +26,7 @@ def create_app():
     app.register_blueprint(pathways_bp)
     app.register_blueprint(careers_bp)
     app.register_blueprint(jobs_bp)
+    app.register_blueprint(programs_bp)
 
     @app.route("/")
     def index():

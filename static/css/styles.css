@@ -428,85 +428,238 @@ select:disabled {
     border-color: var(--color-danger);
 }
 
-/* Job cards list */
+/* Results list */
 #results-list {
     padding: 1rem 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
-.job-card {
+/* Program banner — shown above the position cards */
+.program-banner {
+    background: var(--color-primary-light);
+    border: 1px solid #c0d3ed;
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+}
+
+.program-banner-title {
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    font-size: 0.95rem;
+}
+
+.program-banner-desc {
+    font-size: 0.85rem;
+    color: var(--color-text-mid);
+    margin-top: 0.3rem;
+    line-height: 1.5;
+}
+
+/* County position card */
+.position-card {
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     padding: 1rem 1.25rem;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.5rem 1rem;
-    align-items: start;
-    transition: box-shadow var(--transition), border-color var(--transition);
     background: var(--color-white);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    transition: box-shadow var(--transition), border-color var(--transition);
 }
 
-.job-card:hover {
+.position-card:hover {
     box-shadow: var(--shadow-md);
     border-color: var(--color-primary);
 }
 
-.job-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-primary-dark);
-    grid-column: 1;
+.position-card--new {
+    border-style: dashed;
+    opacity: 0.85;
 }
 
-.job-apply-btn {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    align-self: center;
-    display: inline-block;
-    background: var(--color-primary);
-    color: var(--color-white);
-    padding: 0.5rem 1.1rem;
-    border-radius: var(--radius);
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-align: center;
-    white-space: nowrap;
-    transition: background var(--transition);
-    text-decoration: none;
-}
-
-.job-apply-btn:hover {
-    background: var(--color-primary-dark);
-    text-decoration: none;
-}
-
-.job-meta {
-    grid-column: 1;
+.position-header {
     display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
     flex-wrap: wrap;
-    gap: 0.4rem 1rem;
-    font-size: 0.82rem;
-    color: var(--color-text-light);
 }
 
-.job-meta-item {
+.position-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
-.job-meta-item.salary {
+.position-code {
+    background: var(--color-border);
+    color: var(--color-text-mid);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.position-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.85rem;
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    margin-top: 0.25rem;
+}
+
+.position-meta-item.salary {
     color: var(--color-success);
     font-weight: 600;
 }
 
-.job-source-tag {
-    grid-column: 1 / -1;
-    font-size: 0.72rem;
+.position-apply-btn {
+    display: inline-block;
+    background: var(--color-primary);
+    color: var(--color-white);
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background var(--transition);
+}
+
+.position-apply-btn:hover {
+    background: var(--color-primary-dark);
+    text-decoration: none;
+    color: var(--color-white);
+}
+
+.position-notes {
+    font-size: 0.78rem;
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.6rem;
+}
+
+/* MQ disclosure */
+.position-mqs {
+    font-size: 0.85rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 0.6rem;
+}
+
+.position-mqs summary {
+    cursor: pointer;
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 0.82rem;
+    user-select: none;
+}
+
+.position-mqs summary:hover {
+    text-decoration: underline;
+}
+
+.position-mqs pre {
+    margin-top: 0.5rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.7rem 0.85rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--color-text-mid);
+    white-space: pre-wrap;
+    line-height: 1.55;
+}
+
+/* Career-ladder chain */
+.position-ladder {
+    border-top: 1px solid var(--color-border);
+    padding-top: 0.6rem;
+}
+
+.position-ladder-label {
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--color-text-light);
-    opacity: 0.7;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+}
+
+.ladder-chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.45rem;
+}
+
+.ladder-step {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.78rem;
+    color: var(--color-text-mid);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.ladder-step--entry {
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary-dark);
+}
+
+.ladder-step-num {
+    background: rgba(0,0,0,0.08);
+    color: inherit;
+    font-weight: 700;
+    font-size: 0.7rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ladder-step--entry .ladder-step-num {
+    background: rgba(255,255,255,0.25);
+}
+
+.ladder-step-title {
+    white-space: normal;
+}
+
+.ladder-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    background: rgba(0,0,0,0.06);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+}
+
+.ladder-step--entry .ladder-code {
+    background: rgba(255,255,255,0.2);
+}
+
+.ladder-arrow {
+    color: var(--color-text-light);
+    font-weight: 700;
 }
 
 /* State boxes — no results / error */

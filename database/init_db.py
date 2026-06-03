@@ -16,6 +16,21 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 from config.settings import Config
 
+def _migrate_pathways_add_program(conn):
+    """Add cte_program_id to an existing pathways table if upgrading from the old schema.
+
+    CREATE TABLE IF NOT EXISTS leaves an existing pathways table untouched, so a DB
+    created under the old schema would miss the new column. ALTER TABLE ... ADD COLUMN
+    is idempotent here because we check pragma first.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(pathways)").fetchall()}
+    if "cte_program_id" not in cols:
+        print("  + Adding pathways.cte_program_id (migration from old schema)")
+        conn.execute(
+            "ALTER TABLE pathways ADD COLUMN cte_program_id INTEGER "
+            "REFERENCES cte_programs(id) ON DELETE SET NULL"
+        )
+
 def init_db():
     """Read schema.sql and apply it to the configured SQLite database, creating it if needed."""
     db_path     = os.path.join(PROJECT_ROOT, Config.DATABASE_PATH)
@@ -28,10 +43,11 @@ def init_db():
     conn = sqlite3.connect(db_path)
     try:
         conn.executescript(schema_sql)
+        _migrate_pathways_add_program(conn)
         conn.commit()
-        print("✓ Database initialised.")
+        print("Database initialised.")
     except sqlite3.Error as e:
-        print(f"✗ Database error: {e}")
+        print(f"Database error: {e}")
         sys.exit(1)
     finally:
         conn.close()

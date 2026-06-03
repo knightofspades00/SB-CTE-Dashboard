@@ -1,7 +1,7 @@
 /* =====================================================
    CTE JOB DASHBOARD — app.js
-   Map: Leaflet.js + OpenStreetMap (no API key needed)
-   Handles: map markers, both user flows, job results
+   GIS map of County of San Bernardino entry-level positions
+   tied to CTE programs, fed by a curated catalog (not a live API).
    ===================================================== */
 
 'use strict';
@@ -48,8 +48,8 @@ async function apiFetch(url) {
 }
 
 function escapeHtml(str) {
-  if (!str) return '';
-  return str
+  if (str === null || str === undefined) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -70,10 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // =====================================================
 
 function initMap() {
-  // Centre on San Bernardino County
   state.map = L.map('map').setView([34.1083, -117.2898], 10);
 
-  // OpenStreetMap tile layer — free, no key needed
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 18,
@@ -81,11 +79,9 @@ function initMap() {
 }
 
 function placeMarkers() {
-  // Clear any existing markers
   state.markers.forEach(({ marker }) => marker.remove());
   state.markers = [];
 
-  // Custom blue circle icon
   const defaultIcon = L.divIcon({
     className: '',
     html: `<div style="
@@ -99,7 +95,6 @@ function placeMarkers() {
     iconAnchor: [7, 7],
   });
 
-  // Orange icon for selected/highlighted school
   const activeIcon = L.divIcon({
     className: '',
     html: `<div style="
@@ -123,8 +118,8 @@ function placeMarkers() {
 
     marker.bindPopup(`
       <div style="font-family:system-ui,sans-serif;min-width:160px;">
-        <strong style="color:#0f2f54;">${school.name}</strong><br>
-        <span style="font-size:12px;color:#666;">${school.district}</span><br>
+        <strong style="color:#0f2f54;">${escapeHtml(school.name)}</strong><br>
+        <span style="font-size:12px;color:#666;">${escapeHtml(school.district)}</span><br>
         <span style="font-size:12px;color:#1a4f8a;">
           ${school.pathway_count} pathway${school.pathway_count !== 1 ? 's' : ''}
         </span>
@@ -174,7 +169,6 @@ async function loadCareers() {
 }
 
 function populateSchoolDropdown() {
-  // Group schools by district
   const byDistrict = {};
   state.schools.forEach(s => {
     if (!byDistrict[s.district]) byDistrict[s.district] = [];
@@ -218,7 +212,7 @@ function bindEvents() {
 }
 
 // =====================================================
-//   FLOW 1 — School → Pathway → Jobs
+//   FLOW 1 — School → Pathway → County Positions
 // =====================================================
 
 async function onSchoolChange() {
@@ -232,7 +226,6 @@ async function onSchoolChange() {
 
   highlightMarker(schoolId);
 
-  // Pan map to selected school
   const school = state.schools.find(s => s.id === schoolId);
   if (school && school.latitude && state.map) {
     state.map.setView([school.latitude, school.longitude], 13);
@@ -247,7 +240,6 @@ async function onSchoolChange() {
       return;
     }
 
-    // Group by sector
     const bySector = {};
     pathways.forEach(p => {
       const sector = p.sector || 'Other';
@@ -294,11 +286,11 @@ async function onPathwayChange() {
   state.selectedPathway = { id: pathwayId, name: pathwayName, sector };
   state.activeFlow = 'flow1';
 
-  await fetchAndRenderJobs(pathwayId, pathwayName, sector);
+  await fetchAndRenderPositions(pathwayId, pathwayName, sector);
 }
 
 // =====================================================
-//   FLOW 2 — Career → Pathway Recommendations → Jobs
+//   FLOW 2 — Career → Pathway Recommendations → Positions
 // =====================================================
 
 async function onCareerChange() {
@@ -351,9 +343,8 @@ async function onCareerChange() {
           sector: pathway.sector || '',
         };
 
-        fetchAndRenderJobs(pathway.id, pathway.name, pathway.sector || '');
+        fetchAndRenderPositions(pathway.id, pathway.name, pathway.sector || '');
 
-        // Pan map to first school offering this pathway
         if (pathway.schools.length > 0 && state.map) {
           const first = pathway.schools[0];
           if (first.latitude) {
@@ -377,10 +368,10 @@ async function onCareerChange() {
 }
 
 // =====================================================
-//   JOB FETCHING + RENDERING
+//   COUNTY POSITION FETCHING + RENDERING
 // =====================================================
 
-async function fetchAndRenderJobs(pathwayId, pathwayName, sector) {
+async function fetchAndRenderPositions(pathwayId, pathwayName, sector) {
   clearResultsDisplay();
   show(el.loading);
   show(el.resultsSection);
@@ -395,74 +386,132 @@ async function fetchAndRenderJobs(pathwayId, pathwayName, sector) {
     const data = await apiFetch(`/api/jobs?pathway_id=${pathwayId}`);
     hide(el.loading);
 
-    if (!data.api_available) {
-      show(el.apiUnavailable);
-      el.resultsCount.textContent = '';
-      return;
-    }
-
-    if (!data.jobs || data.jobs.length === 0) {
+    if (!data.program) {
+      // Pathway has no county program tied to it yet.
       show(el.noResults);
-      el.resultsCount.textContent = '0 jobs';
+      el.resultsCount.textContent = '0 positions';
+      const note = document.createElement('div');
+      note.className = 'state-box';
+      note.innerHTML = `
+        <span class="state-icon">🏛</span>
+        <h3>No county positions tied to this pathway yet</h3>
+        <p>${escapeHtml(data.message || 'This pathway is not currently mapped to one of the county\'s 10 CTE programs.')}</p>
+        <p><strong>Speak with your counselor</strong> for guidance.</p>
+      `;
+      el.resultsList.appendChild(note);
       return;
     }
 
-    el.resultsCount.textContent   = `${data.total} job${data.total !== 1 ? 's' : ''} found`;
-    el.resultsHeading.textContent = `Jobs for ${pathwayName}`;
-    renderJobCards(data.jobs);
+    if (!data.positions || data.positions.length === 0) {
+      show(el.noResults);
+      el.resultsCount.textContent = '0 positions';
+      return;
+    }
+
+    el.resultsCount.textContent   = `${data.total} entry position${data.total !== 1 ? 's' : ''}`;
+    el.resultsHeading.textContent = `${data.program.name} careers`;
+    renderProgramBanner(data.program);
+    renderPositionCards(data.positions);
 
   } catch (e) {
     hide(el.loading);
     show(el.apiUnavailable);
     el.resultsCount.textContent = '';
-    console.error('Failed to fetch jobs:', e);
+    console.error('Failed to fetch positions:', e);
   }
 }
 
-function renderJobCards(jobs) {
-  el.resultsList.innerHTML = '';
+function renderProgramBanner(program) {
+  const banner = document.createElement('div');
+  banner.className = 'program-banner';
+  banner.innerHTML = `
+    <div class="program-banner-title">San Bernardino County · ${escapeHtml(program.name)}</div>
+    ${program.description
+      ? `<div class="program-banner-desc">${escapeHtml(program.description)}</div>`
+      : ''}
+  `;
+  el.resultsList.appendChild(banner);
+}
 
-  jobs.forEach(job => {
-    const card       = document.createElement('div');
-    card.className   = 'job-card';
+function renderPositionCards(positions) {
+  positions.forEach(pos => {
+    const card = document.createElement('div');
+    card.className = 'position-card';
+    if (pos.job_code === 'NEW') card.classList.add('position-card--new');
 
-    const postedDate = job.posted
-      ? new Date(job.posted).toLocaleDateString('en-US',
-          { month: 'short', day: 'numeric', year: 'numeric' })
-      : null;
+    const codeBadge = pos.job_code
+      ? `<span class="position-code">${escapeHtml(pos.job_code)}</span>`
+      : '';
+
+    const salary = pos.salary
+      ? `<span class="position-meta-item salary">💰 ${escapeHtml(pos.salary)}</span>`
+      : '';
+
+    const grade = pos.grade
+      ? `<span class="position-meta-item">Grade ${escapeHtml(pos.grade)}</span>`
+      : '';
+
+    const union = pos.union_code
+      ? `<span class="position-meta-item">Union ${escapeHtml(pos.union_code)}</span>`
+      : '';
+
+    const mqs = pos.mqs_text
+      ? `<details class="position-mqs">
+          <summary>Minimum qualifications</summary>
+          <pre>${escapeHtml(pos.mqs_text)}</pre>
+        </details>`
+      : '';
+
+    const ladder = pos.ladder && pos.ladder.length > 1
+      ? renderLadder(pos.ladder)
+      : '';
+
+    const applyBtn = pos.apply_url
+      ? `<a class="position-apply-btn"
+            href="${escapeHtml(pos.apply_url)}"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="See current postings for ${escapeHtml(pos.title)} on governmentjobs.com">
+            See current postings ↗
+         </a>`
+      : `<span class="position-apply-btn" style="opacity:0.4;cursor:default;">Not yet posting</span>`;
 
     card.innerHTML = `
-      <div class="job-title">${escapeHtml(job.title)}</div>
-
-      ${job.apply_url
-        ? `<a class="job-apply-btn"
-              href="${job.apply_url}"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Apply for ${escapeHtml(job.title)}">
-              Apply ↗
-           </a>`
-        : '<span class="job-apply-btn" style="opacity:0.4;cursor:default;">No link</span>'
-      }
-
-      <div class="job-meta">
-        <span class="job-meta-item">🏢 ${escapeHtml(job.employer || 'Federal Agency')}</span>
-        ${job.location
-          ? `<span class="job-meta-item">📍 ${escapeHtml(job.location)}</span>`
-          : ''}
-        ${job.salary
-          ? `<span class="job-meta-item salary">💰 ${escapeHtml(job.salary)}</span>`
-          : ''}
-        ${postedDate
-          ? `<span class="job-meta-item">🗓 Posted ${postedDate}</span>`
-          : ''}
+      <div class="position-header">
+        <div>
+          <div class="position-title">${escapeHtml(pos.title)} ${codeBadge}</div>
+          <div class="position-meta">${salary} ${grade} ${union}</div>
+        </div>
+        ${applyBtn}
       </div>
-
-      <div class="job-source-tag">Source: USAJobs.gov</div>
+      ${ladder}
+      ${mqs}
+      ${pos.notes ? `<div class="position-notes">⚙ ${escapeHtml(pos.notes)}</div>` : ''}
     `;
 
     el.resultsList.appendChild(card);
   });
+}
+
+function renderLadder(ladder) {
+  const steps = ladder.map(step => {
+    const cls = step.is_entry ? 'ladder-step ladder-step--entry' : 'ladder-step';
+    const code = step.job_code && step.job_code !== 'NEW'
+      ? `<span class="ladder-code">${escapeHtml(step.job_code)}</span>`
+      : '';
+    return `<div class="${cls}">
+      <span class="ladder-step-num">${step.step}</span>
+      <span class="ladder-step-title">${escapeHtml(step.title)}</span>
+      ${code}
+    </div>`;
+  }).join('<span class="ladder-arrow">→</span>');
+
+  return `
+    <div class="position-ladder">
+      <div class="position-ladder-label">Career progression</div>
+      <div class="ladder-chain">${steps}</div>
+    </div>
+  `;
 }
 
 // =====================================================
@@ -481,6 +530,6 @@ function clearResults() {
   clearResultsDisplay();
   hide(el.resultsSection);
   hide(el.pathwayInfoBar);
-  el.resultsHeading.textContent = 'Job Results';
+  el.resultsHeading.textContent = 'County career opportunities';
   state.selectedPathway         = null;
 }
