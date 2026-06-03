@@ -358,29 +358,31 @@ function selectSchool(school, { preferredProgramId = null } = {}) {
     });
   }
 
-  // Pick the preferred pathway automatically when chips drove the selection
+  // Mark pathways that belong to the active program filter so the user can see
+  // which of the school's pathways tie to the clicked CTE program chip.
   if (preferredProgramId) {
-    const candidate = offered.find(p => {
-      const fullPathway = state.pathways.find(x => x.id === p.id);
-      return fullPathway && schoolHasPathwayInProgram(school, preferredProgramId, p.id);
+    el.leftPathways.querySelectorAll('.p2p-pathway').forEach(btn => {
+      const pid = parseInt(btn.dataset.pid);
+      const pw = state.pathways.find(x => x.id === pid);
+      if (pw && pw.cte_program_id === preferredProgramId) {
+        btn.classList.add('p2p-pathway--in-program');
+      }
     });
+    // Auto-select the first pathway at this school that actually belongs to the
+    // chip's CTE program — not just any pathway.
+    const candidate = offered.find(p => p.cte_program_id === preferredProgramId);
     if (candidate) onPathwayClick(candidate);
+    else            clearRightPanel();
   } else {
     clearRightPanel();
   }
 
   renderMarkers();
-  if (school.latitude && school.longitude) {
+  // Only zoom in on direct map-marker clicks; chip-driven selections already
+  // fitBounds to the matching school set in onProgramChipClick.
+  if (!preferredProgramId && school.latitude && school.longitude) {
     state.map.setView([school.latitude, school.longitude], Math.max(state.map.getZoom(), 14));
   }
-}
-
-function schoolHasPathwayInProgram(school, programId, pathwayId) {
-  // Cheap proxy: the school has this pathway and offers the program — the
-  // import_county_data mapping guarantees these line up at the program level.
-  const pw = state.pathways.find(p => p.id === pathwayId);
-  if (!pw) return false;
-  return school.pathway_ids.includes(pathwayId) && school.program_ids.includes(programId);
 }
 
 // =====================================================

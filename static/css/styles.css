@@ -1657,6 +1657,17 @@ select:disabled {
     font-weight: 700;
 }
 
+/* Pathway button is highlighted when it belongs to the active CTE Program chip,
+   so the user can spot the on-program pathways at a glance. */
+.p2p-pathway--in-program {
+    border-left: 3px solid var(--p2p-mar);
+    padding-left: calc(0.6rem - 2px);
+}
+
+.p2p-pathway--active.p2p-pathway--in-program {
+    border-left-color: var(--p2p-gold);
+}
+
 /* ============ Map ============ */
 .p2p-map-wrap {
     position: relative;

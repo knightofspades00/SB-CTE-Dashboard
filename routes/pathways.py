@@ -19,6 +19,7 @@ def get_pathways():
     try:
         rows = conn.execute("""
             SELECT p.id, p.name, p.sector, p.department, p.description,
+                   p.cte_program_id,
                    COUNT(DISTINCT sp.school_id) AS school_count
             FROM pathways p
             LEFT JOIN school_pathways sp ON p.id = sp.pathway_id
