@@ -135,6 +135,16 @@ SECTOR_TO_PROGRAM = {
     #   Manufacturing and Product Development
 }
 
+# Pathways whose sector field is NULL in the city spreadsheet but whose program
+# tie-up is clear from the pathway name. Used as an override after the sector
+# lookup so these SBCUSD pathways still light up county positions.
+PATHWAY_NAME_TO_PROGRAM = {
+    "Performing Arts":                       "Arts, Media & Entertainment",
+    "Cabinetry, Millwork, and Woodworking":  "Building & Construction",
+    "Machining and Forming Technologies":    "Building & Construction",
+    "Energy and Power Technology":           "Energy, Environment & Utilities",
+}
+
 # ---------------------------------------------------------------------------
 # County positions catalog
 #
@@ -763,13 +773,20 @@ def map_pathways_to_programs(conn):
         r["name"]: r["id"]
         for r in conn.execute("SELECT id, name FROM cte_programs").fetchall()
     }
-    mapped   = 0
-    unmapped = 0
+    mapped       = 0
+    unmapped     = 0
+    name_mapped  = 0
     unmapped_sectors = set()
     rows = conn.execute("SELECT id, name, sector FROM pathways").fetchall()
     for r in rows:
         sector = (r["sector"] or "").strip()
+        # 1) Try the sector lookup first.
         program_name = SECTOR_TO_PROGRAM.get(sector)
+        # 2) Pathway-name override for entries with NULL/unrecognised sector.
+        if not program_name:
+            program_name = PATHWAY_NAME_TO_PROGRAM.get((r["name"] or "").strip())
+            if program_name:
+                name_mapped += 1
         if program_name and program_name in program_ids:
             conn.execute(
                 "UPDATE pathways SET cte_program_id = ? WHERE id = ?",
@@ -780,7 +797,7 @@ def map_pathways_to_programs(conn):
             unmapped += 1
             if sector:
                 unmapped_sectors.add(sector)
-    print(f"  {mapped} pathways mapped, {unmapped} unmapped")
+    print(f"  {mapped} pathways mapped ({name_mapped} via name override), {unmapped} unmapped")
     if unmapped_sectors:
         print("  Unmapped sectors (no county program tied):")
         for s in sorted(unmapped_sectors):

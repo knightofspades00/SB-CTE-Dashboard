@@ -1346,21 +1346,25 @@ select:disabled {
     color:       var(--p2p-ink);
     margin:      0;
     padding:     0;
-    min-height:  100vh;
+    height:      100vh;
+    display:     flex;
+    flex-direction: column;
+    overflow:    hidden;        /* page never scrolls — internal panels scroll */
 }
 
 /* ============ Header ============ */
 .p2p-header {
+    flex-shrink: 0;
     background: linear-gradient(135deg,
                                 var(--p2p-mar)     0%,
                                 var(--p2p-mar-mid) 40%,
                                 var(--p2p-mar-d)   100%);
     color:    #fff;
-    padding:  1rem 1.5rem;
+    padding:  0.6rem 1.25rem 0.55rem;
     display:  flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
-    gap: 1.5rem;
+    gap: 1rem;
     flex-wrap: wrap;
     position: relative;
     overflow: hidden;
@@ -1385,21 +1389,21 @@ select:disabled {
     background: rgba(240, 194, 48, 0.18);
     color: var(--p2p-gold-b);
     border: 1px solid rgba(240, 194, 48, 0.32);
-    padding: 0.18rem 0.6rem;
+    padding: 0.12rem 0.5rem;
     border-radius: 999px;
-    font-size: 0.62rem;
+    font-size: 0.56rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 700;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.2rem;
 }
 
 .p2p-header h1 {
     font-family: var(--p2p-fs-serif);
-    font-size: 1.85rem;
+    font-size: 1.45rem;
     font-weight: 400;
     color: #fff;
-    line-height: 1.15;
+    line-height: 1.1;
     margin: 0;
 }
 
@@ -1409,9 +1413,9 @@ select:disabled {
 }
 
 .p2p-hsub {
-    color: rgba(255, 255, 255, 0.65);
-    font-size: 0.78rem;
-    margin-top: 0.3rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.7rem;
+    margin-top: 0.15rem;
     max-width: 56ch;
 }
 
@@ -1425,7 +1429,7 @@ select:disabled {
 
 .p2p-stat { text-align: center; }
 .p2p-stat-n {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--p2p-gold-b);
     line-height: 1;
@@ -1468,11 +1472,12 @@ select:disabled {
 
 /* ============ Chip bar ============ */
 .p2p-chip-bar {
-    padding: 0.55rem 1.5rem;
+    flex-shrink: 0;
+    padding: 0.4rem 1.25rem;
     background: #fff;
     border-bottom: 1px solid var(--p2p-bdr);
     display: flex;
-    gap: 0.4rem;
+    gap: 0.35rem;
     flex-wrap: wrap;
     align-items: center;
 }
@@ -1538,12 +1543,12 @@ select:disabled {
 
 /* ============ Main 3-column grid ============ */
 .p2p-main {
+    flex: 1;
+    min-height: 0;
     display: grid;
-    grid-template-columns: 290px 1fr 340px;
-    gap: 0.8rem;
-    padding: 0.8rem 1.5rem 1rem;
-    height: calc(100vh - 168px);
-    min-height: 580px;
+    grid-template-columns: 270px 1fr 320px;
+    gap: 0.6rem;
+    padding: 0.55rem 1.25rem 0.6rem;
 }
 
 .p2p-panel {
@@ -1557,6 +1562,7 @@ select:disabled {
     scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 
 .p2p-panel-head {
@@ -1940,11 +1946,12 @@ select:disabled {
 
 /* ============ Footer ============ */
 .p2p-footer {
+    flex-shrink: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.55rem 1.5rem;
-    font-size: 0.62rem;
+    padding: 0.4rem 1.25rem;
+    font-size: 0.6rem;
     color: var(--p2p-ink-m);
     border-top: 1px solid var(--p2p-bdr);
     background: #fff;
@@ -1997,36 +2004,41 @@ select:disabled {
 
 /* ============ Responsive ============ */
 @media (max-width: 1100px) {
+    /* When the viewport is too narrow for 3 columns, fall back to scrolling
+       so the user can still reach every panel. */
+    .p2p-body {
+        height: auto;
+        overflow: auto;
+    }
     .p2p-main {
         grid-template-columns: 1fr;
-        height: auto;
     }
     .p2p-map-wrap {
         height: 360px;
     }
     .p2p-stats {
-        gap: 0.75rem;
+        gap: 0.7rem;
     }
 }
 
 @media (max-width: 700px) {
     .p2p-header {
-        padding: 0.85rem 1rem;
+        padding: 0.6rem 1rem;
     }
     .p2p-header h1 {
-        font-size: 1.4rem;
+        font-size: 1.2rem;
     }
     .p2p-stats {
-        margin-top: 0.5rem;
+        margin-top: 0.4rem;
         margin-left: 0;
     }
     .p2p-chip-bar {
-        padding: 0.5rem 1rem;
+        padding: 0.4rem 1rem;
     }
     .p2p-main {
-        padding: 0.6rem 1rem;
+        padding: 0.5rem 1rem;
     }
     .p2p-footer {
-        padding: 0.5rem 1rem;
+        padding: 0.4rem 1rem;
     }
 }
