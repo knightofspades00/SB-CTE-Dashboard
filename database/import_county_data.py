@@ -143,6 +143,11 @@ PATHWAY_NAME_TO_PROGRAM = {
     "Cabinetry, Millwork, and Woodworking":  "Building & Construction",
     "Machining and Forming Technologies":    "Building & Construction",
     "Energy and Power Technology":           "Energy, Environment & Utilities",
+    # County has no dedicated Engineering program, but Land Use Tech Trainee,
+    # Code Enforcement Officer, Construction Equipment Worker, etc. (all under
+    # Building & Construction) are realistic entry-level routes for an
+    # Engineering Design CTE student. Mapping here is approximate but useful.
+    "Engineering Design":                    "Building & Construction",
 }
 
 # ---------------------------------------------------------------------------
