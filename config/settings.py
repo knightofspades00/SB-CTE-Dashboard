@@ -13,3 +13,9 @@ class Config:
     # This prevents a misconfigured production server from running with the debugger exposed.
     DEBUG = os.environ.get("FLASK_ENV", "production") == "development"
     DATABASE_PATH = os.environ.get("DATABASE_PATH", os.path.join("database", "cte_dashboard.db"))
+    # Schools list is scoped to one district by default. SBCUSD owns this build.
+    # Override with an empty string in .env to surface every district in the DB.
+    DISTRICT_FILTER = os.environ.get(
+        "DISTRICT_FILTER",
+        "San Bernardino City Unified School District",
+    )

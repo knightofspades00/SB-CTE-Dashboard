@@ -1,6 +1,9 @@
 """
 routes/schools.py — REST endpoints for school data (/api/schools).
 Exposes a list of all schools with pathway counts, and per-school pathway lookups.
+
+All list endpoints filter to Config.DISTRICT_FILTER (defaults to SBCUSD). An empty
+string in DISTRICT_FILTER disables the filter and surfaces every district in the DB.
 """
 
 import sqlite3
@@ -11,19 +14,30 @@ from database.connection import get_db
 
 schools_bp = Blueprint("schools", __name__)
 
+
+def _district_clause():
+    """Return (sql_fragment, params_tuple) for a DISTRICT_FILTER WHERE clause."""
+    df = current_app.config.get("DISTRICT_FILTER") or ""
+    if df:
+        return ("WHERE s.district = ?", (df,))
+    return ("", ())
+
+
 @schools_bp.route("/api/schools", methods=["GET"])
 def get_schools():
-    """Return all schools ordered by district and name, each with a count of offered pathways."""
+    """Return schools (scoped to Config.DISTRICT_FILTER) with offered-pathway counts."""
+    where_sql, params = _district_clause()
     conn = get_db()
     try:
-        rows = conn.execute("""
+        rows = conn.execute(f"""
             SELECT s.id, s.name, s.district, s.latitude, s.longitude,
                    COUNT(sp.pathway_id) AS pathway_count
             FROM schools s
             LEFT JOIN school_pathways sp ON s.id = sp.school_id
+            {where_sql}
             GROUP BY s.id
-            ORDER BY s.district, s.name
-        """).fetchall()
+            ORDER BY s.name
+        """, params).fetchall()
         return jsonify([dict(r) for r in rows])
     except sqlite3.Error as e:
         current_app.logger.error(f"DB error in get_schools: {e}")
@@ -40,18 +54,25 @@ def get_schools_full():
     (pathway, program, district). Faster and simpler than firing one request
     per filter combination.
     """
+    where_sql, params = _district_clause()
     conn = get_db()
     try:
-        schools = conn.execute("""
+        schools = conn.execute(f"""
             SELECT s.id, s.name, s.district, s.latitude, s.longitude
             FROM schools s
-            ORDER BY s.district, s.name
-        """).fetchall()
-        pathway_rows = conn.execute("""
+            {where_sql}
+            ORDER BY s.name
+        """, params).fetchall()
+        school_ids = [s["id"] for s in schools]
+        if not school_ids:
+            return jsonify([])
+        qmarks = ",".join("?" * len(school_ids))
+        pathway_rows = conn.execute(f"""
             SELECT sp.school_id, sp.pathway_id, p.cte_program_id
             FROM school_pathways sp
             JOIN pathways p ON sp.pathway_id = p.id
-        """).fetchall()
+            WHERE sp.school_id IN ({qmarks})
+        """, school_ids).fetchall()
     except sqlite3.Error as e:
         current_app.logger.error(f"DB error in get_schools_full: {e}")
         return jsonify({"error": "Database error"}), 500

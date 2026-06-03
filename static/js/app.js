@@ -1,61 +1,67 @@
 /* =====================================================
-   CTE JOB DASHBOARD — app.js
-   Interactive GIS map of San Bernardino County high schools,
-   filterable by CTE pathway, county program, and district.
+   PATHWAYS TO POSITIONS — app.js
+   SBCUSD high schools ←→ County of San Bernardino entry-level
+   classifications, on an interactive map.
 
-   The map is the primary interface. Picking a school surfaces its
-   pathways; picking a pathway surfaces the county entry-level
-   positions tied to that pathway's CTE program (with MQs, pay,
-   career ladder, and the live "Hiring now" overlay).
+   Three-column flow:
+     [LEFT]   School + clickable pathway list
+     [CENTER] Interactive map (filterable by County CTE program)
+     [RIGHT]  County positions (MQ, pay band, ladder, Hiring-now pill)
+
+   Driven entirely client-side from a small set of JSON endpoints.
    ===================================================== */
 
 'use strict';
 
+// ── Short labels for the 10 County CTE programs (chip text) ──
+const PROGRAM_SHORT = {
+  "Automotive":                                         "Automotive",
+  "Arts, Media & Entertainment":                        "Arts/Media",
+  "Business":                                           "Business",
+  "Patient Care":                                       "Patient Care",
+  "Building & Construction":                            "Construction",
+  "Education, Child Development & Family Services":     "Education/Family",
+  "Energy, Environment & Utilities":                    "Environment",
+  "Hospitality, Tourism & Recreation":                  "Hospitality",
+  "Information & Communication Technologies":           "ICT",
+  "Public Service":                                     "Public Service",
+};
+
 // ── Global state ──────────────────────────────────────
 const state = {
-  schools:         [],   // [{id, name, district, lat, lng, pathway_ids, program_ids, pathway_count}]
-  programs:        [],   // [{id, name, position_count, display_order}]
-  pathways:        [],   // [{id, name, sector}]
-  careers:         [],
-  filter:          { programId: null, pathwayId: null, district: null },
-  selectedSchool:  null,
-  selectedPathway: null,
-  map:             null,
-  cluster:         null, // L.markerClusterGroup
-  markers:         [],   // [{schoolId, marker, baseIcon, matchIcon, dimIcon, selectedIcon}]
+  schools:           [],   // [{id, name, district, lat, lng, pathway_ids, program_ids}]
+  programs:          [],   // [{id, name, position_count, display_order}]
+  pathways:          [],   // [{id, name, sector}]
+  refreshStatus:     null, // {last_refresh, positions_hiring, per_program:[...]}
+  hiringProgramIds:  new Set(),
+  selectedSchool:    null,
+  selectedPathwayId: null,
+  selectedProgramId: null,
+  map:               null,
+  cluster:           null,
+  markers:           [],
 };
 
 // ── DOM refs ──────────────────────────────────────────
 const el = {
-  filterProgram:          document.getElementById('filter-program'),
-  filterPathway:          document.getElementById('filter-pathway'),
-  filterDistrict:         document.getElementById('filter-district'),
-  clearFiltersBtn:        document.getElementById('clear-filters-btn'),
-  filterCount:            document.getElementById('filter-count'),
+  chipBar:          document.getElementById('chip-bar'),
+  headerStats:      document.getElementById('header-stats'),
 
-  schoolDetail:           document.getElementById('school-detail'),
-  schoolDetailName:       document.getElementById('school-detail-name'),
-  schoolDetailDistrict:   document.getElementById('school-detail-district'),
-  schoolPathwayChips:     document.getElementById('school-pathway-chips'),
-  clearSchoolBtn:         document.getElementById('clear-school-btn'),
+  leftEmpty:        document.getElementById('left-empty'),
+  leftSchool:       document.getElementById('left-school'),
+  leftSchoolName:   document.getElementById('left-school-name'),
+  leftSchoolDist:   document.getElementById('left-school-district'),
+  leftPathways:     document.getElementById('left-pathways'),
 
-  schoolSelect:           document.getElementById('school-select'),
-  pathwaySelect:          document.getElementById('pathway-select'),
-  careerSelect:           document.getElementById('career-select'),
-  pathwayRecommendations: document.getElementById('pathway-recommendations'),
-  pathwayCards:           document.getElementById('pathway-cards'),
+  rightEmpty:       document.getElementById('right-empty'),
+  rightPositions:   document.getElementById('right-positions'),
 
-  loading:                document.getElementById('loading'),
-  resultsSection:         document.getElementById('results-section'),
-  resultsHeading:         document.getElementById('results-heading'),
-  resultsCount:           document.getElementById('results-count'),
-  resultsList:            document.getElementById('results-list'),
-  noResults:              document.getElementById('no-results'),
-  apiUnavailable:         document.getElementById('api-unavailable'),
-  pathwayInfoBar:         document.getElementById('pathway-info-bar'),
-  pathwayInfoName:        document.getElementById('pathway-info-name'),
-  pathwayInfoSector:      document.getElementById('pathway-info-sector'),
-  clearResultsBtn:        document.getElementById('clear-results-btn'),
+  statSchool:       document.getElementById('stat-school'),
+  statProgram:      document.getElementById('stat-program'),
+  statCount:        document.getElementById('stat-count'),
+  statPay:          document.getElementById('stat-pay'),
+
+  footerRefresh:    document.getElementById('footer-refresh'),
 };
 
 // ── Utilities ─────────────────────────────────────────
@@ -81,227 +87,443 @@ function escapeHtml(str) {
 // ── Bootstrap ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initMap();
-  bindEvents();
   await Promise.all([
     loadSchoolsFull(),
     loadPrograms(),
     loadPathways(),
-    loadCareers(),
+    loadRefreshStatus(),
   ]);
-  buildFilterOptions();
-  populateAltFlowDropdowns();
+  renderHeaderStats();
+  renderProgramChips();
+  renderFooterRefresh();
   renderMarkers();
+  fitMapToSchools();
 });
 
 // =====================================================
-//   MAP — Leaflet + OpenStreetMap + MarkerCluster
+//   MAP
 // =====================================================
 
 function initMap() {
-  state.map = L.map('map', { zoomControl: true }).setView([34.30, -116.95], 9);
-
+  state.map = L.map('map', { zoomControl: true }).setView([34.138, -117.275], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 18,
+    maxZoom: 19,
   }).addTo(state.map);
-
   state.cluster = L.markerClusterGroup({
     showCoverageOnHover: false,
-    spiderfyOnMaxZoom: true,
-    maxClusterRadius: 40,
+    spiderfyOnMaxZoom:   true,
+    maxClusterRadius:    32,
   });
   state.map.addLayer(state.cluster);
 }
 
-// Three marker icon flavours: default (filter inactive), match (filter active + school
-// matches), dim (filter active + school doesn't match), selected (clicked school).
-function makeIcon({ size, color, border = '#fff', shadow = '0 1px 4px rgba(0,0,0,0.3)' }) {
+function fitMapToSchools() {
+  const pts = state.schools
+    .filter(s => s.latitude && s.longitude)
+    .map(s => [s.latitude, s.longitude]);
+  if (pts.length === 0) return;
+  state.map.fitBounds(pts, { padding: [30, 30], maxZoom: 13 });
+}
+
+// Marker icon variants. The "ring" property layers a thin gold ring around a
+// marker that has any position currently hiring on that school's programs —
+// this is what makes the map convey live hiring data at a glance.
+function makeIcon({ size, color, ring = null }) {
+  const ringHtml = ring
+    ? `<div style="position:absolute;inset:-4px;border:2px solid ${ring};border-radius:999px;pointer-events:none;"></div>`
+    : '';
   return L.divIcon({
     className: '',
-    html: `<div style="
-      width:${size}px;height:${size}px;
-      background:${color};border:2px solid ${border};
-      border-radius:50%;box-shadow:${shadow};
-    "></div>`,
+    html: `<div style="position:relative;width:${size}px;height:${size}px;">
+      ${ringHtml}
+      <div style="
+        position:absolute;inset:0;
+        background:${color};
+        border:2.5px solid #fff;
+        border-radius:50%;
+        box-shadow:0 2px 5px rgba(0,0,0,.32);
+      "></div>
+    </div>`,
     iconSize:   [size, size],
     iconAnchor: [size / 2, size / 2],
   });
 }
 
-const ICONS = {
-  default:  () => makeIcon({ size: 14, color: '#1a4f8a' }),
-  match:    () => makeIcon({ size: 16, color: '#1a4f8a' }),
-  selected: () => makeIcon({ size: 20, color: '#e07b1a', shadow: '0 2px 8px rgba(0,0,0,0.45)' }),
-  dim:      () => makeIcon({ size: 10, color: '#cfd5dc', border: 'rgba(255,255,255,0.7)', shadow: 'none' }),
+const ICON = {
+  default:  hiring => makeIcon({ size: 14, color: '#6e1527', ring: hiring ? '#1a7a3a' : null }),
+  match:    hiring => makeIcon({ size: 16, color: '#6e1527', ring: hiring ? '#1a7a3a' : null }),
+  dim:      ()     => makeIcon({ size: 10, color: '#cfd5dc' }),
+  selected: hiring => makeIcon({ size: 20, color: '#d4a012', ring: hiring ? '#1a7a3a' : null }),
 };
 
+function schoolMatchesProgramFilter(s) {
+  if (!state.selectedProgramId) return true;
+  return s.program_ids.includes(state.selectedProgramId);
+}
+
+function schoolIsHiring(s) {
+  return s.program_ids.some(pid => state.hiringProgramIds.has(pid));
+}
+
 function renderMarkers() {
-  // Wipe and rebuild the marker layer so colors track the current filter state.
   state.cluster.clearLayers();
   state.markers = [];
 
-  const filterActive = hasActiveFilter();
-  let matchCount = 0;
-
   state.schools.forEach(school => {
     if (!school.latitude || !school.longitude) return;
-
-    const isMatch    = filterActive && schoolMatches(school);
+    const matches    = schoolMatchesProgramFilter(school);
+    const hiring     = schoolIsHiring(school);
     const isSelected = state.selectedSchool && state.selectedSchool.id === school.id;
+    const filtering  = !!state.selectedProgramId;
 
     let icon;
-    if (isSelected)            icon = ICONS.selected();
-    else if (!filterActive)    icon = ICONS.default();
-    else if (isMatch)          icon = ICONS.match();
-    else                       icon = ICONS.dim();
+    if (isSelected)           icon = ICON.selected(hiring);
+    else if (!filtering)      icon = ICON.default(hiring);
+    else if (matches)         icon = ICON.match(hiring);
+    else                      icon = ICON.dim();
 
+    const opacity = filtering && !matches && !isSelected ? 0.5 : 1;
     const marker = L.marker([school.latitude, school.longitude], {
-      icon,
-      title:    school.name,
-      opacity:  (filterActive && !isMatch && !isSelected) ? 0.55 : 1,
-      keyboard: !filterActive || isMatch || isSelected,
+      icon, opacity, title: school.name,
     });
-
-    const programNames = school.program_ids
+    const progSummary = school.program_ids
       .map(pid => (state.programs.find(p => p.id === pid) || {}).name)
-      .filter(Boolean);
+      .filter(Boolean)
+      .map(escapeHtml)
+      .join(', ');
     marker.bindPopup(`
-      <div style="font-family:system-ui,sans-serif;min-width:180px;">
-        <strong style="color:#0f2f54;">${escapeHtml(school.name)}</strong><br>
-        <span style="font-size:12px;color:#666;">${escapeHtml(school.district)}</span><br>
-        <span style="font-size:12px;color:#1a4f8a;">
+      <div style="font-family:'DM Sans',system-ui,sans-serif;min-width:200px;">
+        <strong style="color:#6e1527;font-size:14px;">${escapeHtml(school.name)}</strong><br>
+        <span style="font-size:11px;color:#6b6b76;">${escapeHtml(school.district)}</span><br>
+        <span style="font-size:11px;color:#1a1a1e;margin-top:4px;display:inline-block;">
           ${school.pathway_count} pathway${school.pathway_count !== 1 ? 's' : ''}
-          ${programNames.length ? ' across ' + programNames.length + ' county program' + (programNames.length === 1 ? '' : 's') : ''}
         </span>
+        ${progSummary ? `<div style="font-size:10px;color:#6b6b76;margin-top:2px;">${progSummary}</div>` : ''}
+        ${hiring ? '<div style="margin-top:4px;color:#1a7a3a;font-weight:700;font-size:11px;">● Has positions hiring now</div>' : ''}
       </div>
     `);
-    marker.on('click', () => selectSchoolById(school.id));
-
+    marker.on('click', () => selectSchool(school));
     state.cluster.addLayer(marker);
     state.markers.push({ schoolId: school.id, marker });
-
-    if (!filterActive || isMatch) matchCount++;
   });
-
-  updateFilterCount(matchCount, filterActive);
 }
 
 // =====================================================
-//   FILTERS
+//   HEADER STATS + FOOTER REFRESH
 // =====================================================
 
-function hasActiveFilter() {
-  const f = state.filter;
-  return !!(f.programId || f.pathwayId || f.district);
+function renderHeaderStats() {
+  const positionCount = state.programs.reduce((sum, p) => sum + (p.position_count || 0), 0);
+  el.headerStats.innerHTML = `
+    <div class="p2p-stat">
+      <div class="p2p-stat-n">${state.schools.length}</div>
+      <div class="p2p-stat-l">SBCUSD Schools</div>
+    </div>
+    <div class="p2p-stat">
+      <div class="p2p-stat-n">${state.programs.length}</div>
+      <div class="p2p-stat-l">CTE Programs</div>
+    </div>
+    <div class="p2p-stat">
+      <div class="p2p-stat-n">${positionCount}</div>
+      <div class="p2p-stat-l">County Positions</div>
+    </div>
+    ${state.refreshStatus && state.refreshStatus.positions_hiring
+      ? `<div class="p2p-stat p2p-stat--hiring">
+          <div class="p2p-stat-n">${state.refreshStatus.positions_hiring}</div>
+          <div class="p2p-stat-l">Hiring now</div>
+         </div>`
+      : ''}
+  `;
 }
 
-function schoolMatches(school) {
-  const f = state.filter;
-  if (f.programId && !school.program_ids.includes(f.programId)) return false;
-  if (f.pathwayId && !school.pathway_ids.includes(f.pathwayId)) return false;
-  if (f.district && school.district !== f.district) return false;
-  return true;
+function renderFooterRefresh() {
+  if (!el.footerRefresh) return;
+  if (state.refreshStatus && state.refreshStatus.last_refresh) {
+    el.footerRefresh.textContent = `Hiring overlay refreshed ${state.refreshStatus.last_refresh} UTC`;
+  } else {
+    el.footerRefresh.textContent = '';
+  }
 }
 
-function updateFilterCount(matchCount, filterActive) {
-  const total = state.schools.length;
-  el.filterCount.textContent = filterActive
-    ? `${matchCount} of ${total} schools match`
-    : `${total} schools`;
-  el.filterCount.classList.toggle('filter-status--active', filterActive);
-}
+// =====================================================
+//   PROGRAM CHIPS
+// =====================================================
 
-function buildFilterOptions() {
-  // Program <select>
-  el.filterProgram.innerHTML = '<option value="">All 10 programs</option>';
+function renderProgramChips() {
+  el.chipBar.innerHTML = '<span class="p2p-chip-label">CTE Programs:</span>';
   state.programs
     .slice()
     .sort((a, b) => a.display_order - b.display_order)
-    .forEach(p => {
-      const opt = document.createElement('option');
-      opt.value       = p.id;
-      opt.textContent = `${p.name}`;
-      el.filterProgram.appendChild(opt);
+    .forEach(prog => {
+      const chip = document.createElement('button');
+      chip.className   = 'p2p-chip';
+      chip.dataset.pid = prog.id;
+      chip.type        = 'button';
+      const short = PROGRAM_SHORT[prog.name] || prog.name;
+      const hiring = (state.refreshStatus?.per_program || []).find(r => r.id === prog.id);
+      chip.innerHTML = `
+        <span>${escapeHtml(short)}</span>
+        ${hiring && hiring.posting_count
+          ? `<span class="p2p-chip-hiring" title="${hiring.posting_count} hiring now">●</span>`
+          : ''}
+      `;
+      chip.addEventListener('click', () => onProgramChipClick(prog));
+      el.chipBar.appendChild(chip);
     });
-
-  // Pathway <select> (will be re-populated when program filter changes)
-  populatePathwayFilter(state.pathways);
-
-  // District <select>
-  el.filterDistrict.innerHTML = '<option value="">All districts</option>';
-  Array.from(new Set(state.schools.map(s => s.district))).sort().forEach(d => {
-    const opt = document.createElement('option');
-    opt.value       = d;
-    opt.textContent = d;
-    el.filterDistrict.appendChild(opt);
-  });
+  const reset = document.createElement('button');
+  reset.className = 'p2p-chip p2p-chip--reset';
+  reset.type      = 'button';
+  reset.textContent = 'Reset';
+  reset.addEventListener('click', resetAll);
+  el.chipBar.appendChild(reset);
 }
 
-function populatePathwayFilter(pathways) {
-  el.filterPathway.innerHTML = '<option value="">All pathways</option>';
-  const bySector = {};
-  pathways.forEach(p => {
-    const sector = p.sector || 'Other';
-    if (!bySector[sector]) bySector[sector] = [];
-    bySector[sector].push(p);
-  });
-  Object.keys(bySector).sort().forEach(sector => {
-    const group = document.createElement('optgroup');
-    group.label = sector;
-    bySector[sector].forEach(p => {
-      const opt = document.createElement('option');
-      opt.value       = p.id;
-      opt.textContent = p.name;
-      group.appendChild(opt);
-    });
-    el.filterPathway.appendChild(group);
-  });
-}
-
-function onProgramFilterChange() {
-  const id = parseInt(el.filterProgram.value) || null;
-  state.filter.programId = id;
-
-  // Narrow the Pathway dropdown to pathways whose schools are in this program.
-  if (id) {
-    const matchingPathwayIds = new Set();
-    state.schools.forEach(s => {
-      if (s.program_ids.includes(id)) {
-        s.pathway_ids.forEach(pid => matchingPathwayIds.add(pid));
-      }
-    });
-    populatePathwayFilter(state.pathways.filter(p => matchingPathwayIds.has(p.id)));
+function onProgramChipClick(prog) {
+  // Toggle: clicking the active chip clears the filter
+  if (state.selectedProgramId === prog.id) {
+    state.selectedProgramId = null;
   } else {
-    populatePathwayFilter(state.pathways);
+    state.selectedProgramId = prog.id;
   }
-  // Reset pathway filter if the current pathway is no longer reachable.
-  if (state.filter.pathwayId &&
-      ![...el.filterPathway.options].some(o => parseInt(o.value) === state.filter.pathwayId)) {
-    state.filter.pathwayId = null;
-    el.filterPathway.value = '';
-  } else if (state.filter.pathwayId) {
-    el.filterPathway.value = String(state.filter.pathwayId);
+  refreshChipActiveStates();
+
+  // When activating a program, focus the map on schools that offer it AND
+  // auto-select the first such school so the side panels populate.
+  if (state.selectedProgramId) {
+    const matches = state.schools.filter(schoolMatchesProgramFilter);
+    if (matches.length) {
+      // Auto-select first matching school + preferentially auto-pick a pathway
+      // from this program if the school has one.
+      selectSchool(matches[0], { preferredProgramId: state.selectedProgramId });
+      const pts = matches
+        .filter(s => s.latitude && s.longitude)
+        .map(s => [s.latitude, s.longitude]);
+      if (pts.length) {
+        state.map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
+      }
+    }
   }
   renderMarkers();
 }
 
-function onPathwayFilterChange() {
-  state.filter.pathwayId = parseInt(el.filterPathway.value) || null;
-  renderMarkers();
+function refreshChipActiveStates() {
+  el.chipBar.querySelectorAll('.p2p-chip').forEach(c => {
+    if (c.classList.contains('p2p-chip--reset')) return;
+    c.classList.toggle('p2p-chip--active', parseInt(c.dataset.pid) === state.selectedProgramId);
+  });
 }
 
-function onDistrictFilterChange() {
-  state.filter.district = el.filterDistrict.value || null;
+// =====================================================
+//   SCHOOL SELECTION + LEFT PANEL
+// =====================================================
+
+function selectSchool(school, { preferredProgramId = null } = {}) {
+  state.selectedSchool = school;
+  hide(el.leftEmpty);
+  show(el.leftSchool);
+
+  el.leftSchoolName.textContent = school.name;
+  el.leftSchoolDist.textContent = school.district;
+
+  // Group pathways by sector
+  const offered = school.pathway_ids
+    .map(pid => state.pathways.find(p => p.id === pid))
+    .filter(Boolean);
+  const bySector = {};
+  offered.forEach(p => {
+    const sec = p.sector || 'Other';
+    if (!bySector[sec]) bySector[sec] = [];
+    bySector[sec].push(p);
+  });
+
+  el.leftPathways.innerHTML = '';
+  if (offered.length === 0) {
+    el.leftPathways.innerHTML = '<p class="p2p-empty">No pathways on file for this school.</p>';
+  } else {
+    Object.keys(bySector).sort().forEach(sector => {
+      const group = document.createElement('div');
+      group.className = 'p2p-pathway-group';
+      group.innerHTML = `<div class="p2p-pathway-sector">${escapeHtml(sector)}</div>`;
+      bySector[sector].forEach(pw => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'p2p-pathway';
+        btn.dataset.pid = pw.id;
+        btn.textContent = pw.name;
+        btn.addEventListener('click', () => onPathwayClick(pw));
+        group.appendChild(btn);
+      });
+      el.leftPathways.appendChild(group);
+    });
+  }
+
+  // Pick the preferred pathway automatically when chips drove the selection
+  if (preferredProgramId) {
+    const candidate = offered.find(p => {
+      const fullPathway = state.pathways.find(x => x.id === p.id);
+      return fullPathway && schoolHasPathwayInProgram(school, preferredProgramId, p.id);
+    });
+    if (candidate) onPathwayClick(candidate);
+  } else {
+    clearRightPanel();
+  }
+
   renderMarkers();
+  if (school.latitude && school.longitude) {
+    state.map.setView([school.latitude, school.longitude], Math.max(state.map.getZoom(), 14));
+  }
 }
 
-function clearFilters() {
-  state.filter = { programId: null, pathwayId: null, district: null };
-  el.filterProgram.value  = '';
-  el.filterPathway.value  = '';
-  el.filterDistrict.value = '';
-  populatePathwayFilter(state.pathways);
+function schoolHasPathwayInProgram(school, programId, pathwayId) {
+  // Cheap proxy: the school has this pathway and offers the program — the
+  // import_county_data mapping guarantees these line up at the program level.
+  const pw = state.pathways.find(p => p.id === pathwayId);
+  if (!pw) return false;
+  return school.pathway_ids.includes(pathwayId) && school.program_ids.includes(programId);
+}
+
+// =====================================================
+//   PATHWAY CLICK → RIGHT PANEL
+// =====================================================
+
+async function onPathwayClick(pathway) {
+  state.selectedPathwayId = pathway.id;
+  document.querySelectorAll('.p2p-pathway').forEach(b => {
+    b.classList.toggle('p2p-pathway--active', parseInt(b.dataset.pid) === pathway.id);
+  });
+
+  hide(el.rightEmpty);
+  el.rightPositions.innerHTML = '<div class="p2p-loading">Loading positions…</div>';
+  el.statSchool.textContent  = state.selectedSchool ? state.selectedSchool.name : '—';
+  el.statProgram.textContent = '…';
+  el.statCount.textContent   = '…';
+  el.statPay.textContent     = '…';
+
+  try {
+    const data = await apiFetch(`/api/jobs?pathway_id=${pathway.id}`);
+    if (!data.program) {
+      el.rightPositions.innerHTML = `
+        <div class="p2p-empty">
+          This pathway is not currently tied to one of the County's 10 CTE programs.
+          Speak with your counselor for guidance.
+        </div>`;
+      el.statProgram.textContent = '—';
+      el.statCount.textContent   = '0';
+      el.statPay.textContent     = '—';
+      return;
+    }
+    el.statProgram.textContent = data.program.name;
+    el.statCount.textContent   = data.positions.length;
+    const pays = data.positions
+      .filter(p => p.min_hourly && p.max_hourly)
+      .reduce(
+        (acc, p) => ({
+          lo: Math.min(acc.lo, p.min_hourly),
+          hi: Math.max(acc.hi, p.max_hourly),
+        }),
+        { lo: Infinity, hi: -Infinity }
+      );
+    el.statPay.textContent = pays.lo === Infinity
+      ? 'TBD'
+      : `$${pays.lo.toFixed(2)} – $${pays.hi.toFixed(2)}/hr`;
+    renderPositions(data.positions);
+  } catch (e) {
+    console.error('Failed to load positions:', e);
+    el.rightPositions.innerHTML =
+      '<div class="p2p-empty p2p-empty--err">Could not load county positions. Try again later.</div>';
+  }
+}
+
+function clearRightPanel() {
+  state.selectedPathwayId = null;
+  show(el.rightEmpty);
+  el.rightPositions.innerHTML = '';
+  el.statSchool.textContent  = state.selectedSchool ? state.selectedSchool.name : '—';
+  el.statProgram.textContent = '—';
+  el.statCount.textContent   = '0';
+  el.statPay.textContent     = '—';
+}
+
+function renderPositions(positions) {
+  el.rightPositions.innerHTML = '';
+  if (!positions.length) {
+    el.rightPositions.innerHTML = '<div class="p2p-empty">No positions tied to this pathway yet.</div>';
+    return;
+  }
+  positions.forEach((pos, i) => {
+    const card = document.createElement('div');
+    card.className = 'p2p-pos';
+    if (pos.is_hiring_now)      card.classList.add('p2p-pos--hiring');
+    if (pos.job_code === 'NEW') card.classList.add('p2p-pos--new');
+    card.style.animationDelay = `${i * 0.04}s`;
+
+    const codeBadge = pos.job_code
+      ? `<span class="p2p-pos-code">${escapeHtml(pos.job_code)}${pos.job_code === 'NEW' ? ' · Proposed' : ''}</span>`
+      : '';
+
+    const hiringPill = pos.is_hiring_now
+      ? `<span class="p2p-pos-hiring">● Hiring now${pos.current_postings.length > 1 ? ' · ' + pos.current_postings.length : ''}</span>`
+      : '';
+
+    const salary = (pos.min_hourly && pos.max_hourly)
+      ? `<span class="p2p-pos-salary">$${pos.min_hourly.toFixed(2)} – $${pos.max_hourly.toFixed(2)}/hr</span>`
+      : '<span class="p2p-pos-salary p2p-pos-salary--tbd">TBD</span>';
+
+    const liveUrl  = pos.is_hiring_now && pos.current_postings[0]?.url;
+    const applyHref = liveUrl || pos.apply_url;
+    const applyLabel = pos.is_hiring_now
+      ? 'Apply now ↗'
+      : (pos.apply_url ? 'View posting ↗' : 'Not yet posting');
+    const applyBtn = applyHref
+      ? `<a class="p2p-pos-apply" href="${escapeHtml(applyHref)}" target="_blank" rel="noopener noreferrer">${applyLabel}</a>`
+      : `<span class="p2p-pos-apply p2p-pos-apply--disabled">${applyLabel}</span>`;
+
+    const ladderHtml = (pos.ladder && pos.ladder.length > 1)
+      ? `<div class="p2p-pos-ladder">↗ ${pos.ladder.map(s => escapeHtml(s.title)).join(' → ')}</div>`
+      : '';
+
+    const mqsHtml = pos.mqs_text
+      ? `<details class="p2p-pos-mqs">
+          <summary>Minimum qualifications</summary>
+          <pre>${escapeHtml(pos.mqs_text)}</pre>
+        </details>`
+      : '';
+
+    card.innerHTML = `
+      <div class="p2p-pos-head">
+        <h3>${escapeHtml(pos.title)}</h3>
+        ${hiringPill}
+      </div>
+      <div class="p2p-pos-meta">
+        ${codeBadge}
+        ${salary}
+      </div>
+      ${ladderHtml}
+      ${mqsHtml}
+      <div class="p2p-pos-foot">
+        ${applyBtn}
+      </div>
+    `;
+    el.rightPositions.appendChild(card);
+  });
+}
+
+// =====================================================
+//   RESET
+// =====================================================
+
+function resetAll() {
+  state.selectedProgramId = null;
+  state.selectedSchool    = null;
+  state.selectedPathwayId = null;
+  refreshChipActiveStates();
+  hide(el.leftSchool);
+  show(el.leftEmpty);
+  el.leftPathways.innerHTML = '';
+  clearRightPanel();
   renderMarkers();
+  fitMapToSchools();
 }
 
 // =====================================================
@@ -335,415 +557,16 @@ async function loadPathways() {
   }
 }
 
-async function loadCareers() {
+async function loadRefreshStatus() {
   try {
-    state.careers = await apiFetch('/api/careers');
-    populateCareerDropdown();
+    state.refreshStatus = await apiFetch('/api/refresh-status');
+    state.hiringProgramIds = new Set(
+      (state.refreshStatus.per_program || [])
+        .filter(r => r.posting_count > 0)
+        .map(r => r.id)
+    );
   } catch (e) {
-    console.error('Failed to load careers:', e);
+    console.warn('No refresh status available:', e);
+    state.refreshStatus = null;
   }
-}
-
-function populateAltFlowDropdowns() {
-  // Alt-flow school dropdown (collapsed section). Built from state.schools already in memory.
-  const byDistrict = {};
-  state.schools.forEach(s => {
-    if (!byDistrict[s.district]) byDistrict[s.district] = [];
-    byDistrict[s.district].push(s);
-  });
-  el.schoolSelect.innerHTML = '<option value="">-- Choose a school --</option>';
-  Object.keys(byDistrict).sort().forEach(district => {
-    const group = document.createElement('optgroup');
-    group.label = district;
-    byDistrict[district].forEach(school => {
-      const opt = document.createElement('option');
-      opt.value       = school.id;
-      opt.textContent = school.name;
-      group.appendChild(opt);
-    });
-    el.schoolSelect.appendChild(group);
-  });
-}
-
-function populateCareerDropdown() {
-  el.careerSelect.innerHTML = '<option value="">-- Choose a career --</option>';
-  state.careers.forEach(career => {
-    const opt = document.createElement('option');
-    opt.value       = career.id;
-    opt.textContent = career.name;
-    el.careerSelect.appendChild(opt);
-  });
-}
-
-// =====================================================
-//   EVENT BINDING
-// =====================================================
-
-function bindEvents() {
-  el.filterProgram.addEventListener('change', onProgramFilterChange);
-  el.filterPathway.addEventListener('change', onPathwayFilterChange);
-  el.filterDistrict.addEventListener('change', onDistrictFilterChange);
-  el.clearFiltersBtn.addEventListener('click', clearFilters);
-  el.clearSchoolBtn.addEventListener('click', clearSchoolDetail);
-
-  el.schoolSelect.addEventListener('change', onAltSchoolChange);
-  el.pathwaySelect.addEventListener('change', onAltPathwayChange);
-  el.careerSelect.addEventListener('change', onCareerChange);
-  el.clearResultsBtn.addEventListener('click', clearResults);
-}
-
-// =====================================================
-//   SCHOOL SELECTION (from map click OR alt-flow dropdown)
-// =====================================================
-
-function selectSchoolById(schoolId) {
-  const school = state.schools.find(s => s.id === schoolId);
-  if (!school) return;
-  state.selectedSchool = school;
-  renderMarkers();           // refresh icons so the selected one becomes orange
-  renderSchoolDetail(school);
-  if (school.latitude && state.map) {
-    state.map.setView([school.latitude, school.longitude], 13);
-  }
-}
-
-function clearSchoolDetail() {
-  state.selectedSchool = null;
-  hide(el.schoolDetail);
-  el.schoolPathwayChips.innerHTML = '';
-  clearResults();
-  renderMarkers();
-}
-
-function renderSchoolDetail(school) {
-  el.schoolDetailName.textContent     = school.name;
-  el.schoolDetailDistrict.textContent = school.district;
-
-  // Build pathway chips from the in-memory pathway catalogue.
-  el.schoolPathwayChips.innerHTML = '';
-  const pathwayObjects = school.pathway_ids
-    .map(pid => state.pathways.find(p => p.id === pid))
-    .filter(Boolean)
-    .sort((a, b) => (a.sector || '').localeCompare(b.sector || '') || a.name.localeCompare(b.name));
-
-  if (pathwayObjects.length === 0) {
-    el.schoolPathwayChips.innerHTML =
-      '<p style="font-size:0.85rem;color:#666;">No pathway data on file.</p>';
-  } else {
-    pathwayObjects.forEach(p => {
-      const chip = document.createElement('button');
-      chip.type      = 'button';
-      chip.className = 'pathway-chip';
-      chip.innerHTML = `
-        <span class="pathway-chip-name">${escapeHtml(p.name)}</span>
-        ${p.sector ? `<span class="pathway-chip-sector">${escapeHtml(p.sector)}</span>` : ''}
-      `;
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.pathway-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        fetchAndRenderPositions(p.id, p.name, p.sector || '');
-      });
-      el.schoolPathwayChips.appendChild(chip);
-    });
-  }
-  show(el.schoolDetail);
-}
-
-// =====================================================
-//   ALT FLOW 1 — School dropdown → pathway dropdown → positions
-// =====================================================
-
-async function onAltSchoolChange() {
-  const schoolId = parseInt(el.schoolSelect.value);
-  el.pathwaySelect.innerHTML = '<option value="">-- Choose a pathway --</option>';
-  el.pathwaySelect.disabled  = true;
-  if (!schoolId) return;
-
-  selectSchoolById(schoolId);
-
-  try {
-    const data     = await apiFetch(`/api/schools/${schoolId}/pathways`);
-    const pathways = data.pathways;
-    if (!pathways.length) {
-      el.pathwaySelect.innerHTML = '<option value="">No pathways found</option>';
-      return;
-    }
-    const bySector = {};
-    pathways.forEach(p => {
-      const s = p.sector || 'Other';
-      if (!bySector[s]) bySector[s] = [];
-      bySector[s].push(p);
-    });
-    Object.keys(bySector).sort().forEach(sector => {
-      const group = document.createElement('optgroup');
-      group.label = sector;
-      bySector[sector].forEach(pathway => {
-        const opt = document.createElement('option');
-        opt.value       = pathway.id;
-        opt.textContent = pathway.name;
-        group.appendChild(opt);
-      });
-      el.pathwaySelect.appendChild(group);
-    });
-    el.pathwaySelect.disabled = false;
-  } catch (e) {
-    console.error('Failed to load pathways for school:', e);
-    el.pathwaySelect.innerHTML = '<option value="">Error loading pathways</option>';
-  }
-}
-
-async function onAltPathwayChange() {
-  const pathwayId = parseInt(el.pathwaySelect.value);
-  if (!pathwayId) return;
-  const selectedOpt = el.pathwaySelect.options[el.pathwaySelect.selectedIndex];
-  const name        = selectedOpt.text;
-  const sector      = selectedOpt.closest('optgroup')?.label || '';
-  await fetchAndRenderPositions(pathwayId, name, sector);
-}
-
-// =====================================================
-//   ALT FLOW 2 — Career → recommended pathways → positions
-// =====================================================
-
-async function onCareerChange() {
-  const careerId = parseInt(el.careerSelect.value);
-  hide(el.pathwayRecommendations);
-  el.pathwayCards.innerHTML = '';
-  clearResults();
-  if (!careerId) return;
-
-  try {
-    const data     = await apiFetch(`/api/pathways/by-career/${careerId}`);
-    const pathways = data.pathways;
-    if (!pathways.length) {
-      el.pathwayCards.innerHTML =
-        '<p style="font-size:0.85rem;color:#666;">No pathways found for this career.</p>';
-      show(el.pathwayRecommendations);
-      return;
-    }
-    pathways.forEach(pathway => {
-      const card       = document.createElement('div');
-      card.className   = 'pathway-rec-card';
-      card.dataset.id  = pathway.id;
-      const schoolList  = pathway.schools.slice(0, 3).map(s => s.name).join(', ');
-      const moreSchools = pathway.schools.length > 3 ? ` +${pathway.schools.length - 3} more` : '';
-      card.innerHTML = `
-        <div class="pathway-rec-name">${escapeHtml(pathway.name)}</div>
-        <div class="pathway-rec-sector">${escapeHtml(pathway.sector || '')}</div>
-        ${pathway.schools.length > 0
-          ? `<div class="pathway-rec-schools">📍 ${escapeHtml(schoolList)}${moreSchools}</div>`
-          : ''}
-      `;
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.pathway-rec-card').forEach(c => c.classList.remove('active'));
-        card.classList.add('active');
-        fetchAndRenderPositions(pathway.id, pathway.name, pathway.sector || '');
-        if (pathway.schools.length > 0 && state.map) {
-          const first = pathway.schools[0];
-          if (first.latitude) state.map.setView([first.latitude, first.longitude], 11);
-        }
-      });
-      el.pathwayCards.appendChild(card);
-    });
-    show(el.pathwayRecommendations);
-  } catch (e) {
-    console.error('Failed to load pathways for career:', e);
-    el.pathwayCards.innerHTML =
-      '<p style="font-size:0.85rem;color:#c0392b;">Error loading recommendations.</p>';
-    show(el.pathwayRecommendations);
-  }
-}
-
-// =====================================================
-//   COUNTY POSITION FETCH + RENDER
-// =====================================================
-
-async function fetchAndRenderPositions(pathwayId, pathwayName, sector) {
-  clearResultsDisplay();
-  show(el.loading);
-  show(el.resultsSection);
-
-  el.pathwayInfoName.textContent   = pathwayName;
-  el.pathwayInfoSector.textContent = sector ? `· ${sector}` : '';
-  show(el.pathwayInfoBar);
-
-  el.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  try {
-    const data = await apiFetch(`/api/jobs?pathway_id=${pathwayId}`);
-    hide(el.loading);
-
-    if (!data.program) {
-      show(el.noResults);
-      el.resultsCount.textContent = '0 positions';
-      const note = document.createElement('div');
-      note.className = 'state-box';
-      note.innerHTML = `
-        <span class="state-icon">🏛</span>
-        <h3>No county positions tied to this pathway yet</h3>
-        <p>${escapeHtml(data.message || 'This pathway is not currently mapped to one of the county\'s 10 CTE programs.')}</p>
-        <p><strong>Speak with your counselor</strong> for guidance.</p>
-      `;
-      el.resultsList.appendChild(note);
-      return;
-    }
-    if (!data.positions || data.positions.length === 0) {
-      show(el.noResults);
-      el.resultsCount.textContent = '0 positions';
-      return;
-    }
-    el.resultsCount.textContent   = `${data.total} entry position${data.total !== 1 ? 's' : ''}`;
-    el.resultsHeading.textContent = `${data.program.name} careers`;
-    renderProgramBanner(data.program);
-    renderPositionCards(data.positions);
-  } catch (e) {
-    hide(el.loading);
-    show(el.apiUnavailable);
-    el.resultsCount.textContent = '';
-    console.error('Failed to fetch positions:', e);
-  }
-}
-
-function renderProgramBanner(program) {
-  const banner = document.createElement('div');
-  banner.className = 'program-banner';
-  banner.innerHTML = `
-    <div class="program-banner-title">San Bernardino County · ${escapeHtml(program.name)}</div>
-    ${program.description
-      ? `<div class="program-banner-desc">${escapeHtml(program.description)}</div>`
-      : ''}
-  `;
-  el.resultsList.appendChild(banner);
-}
-
-function renderPositionCards(positions) {
-  positions.forEach(pos => {
-    const card = document.createElement('div');
-    card.className = 'position-card';
-    if (pos.job_code === 'NEW') card.classList.add('position-card--new');
-    if (pos.is_hiring_now)      card.classList.add('position-card--hiring');
-
-    const codeBadge = pos.job_code
-      ? `<span class="position-code">${escapeHtml(pos.job_code)}</span>`
-      : '';
-
-    const hiringPill = pos.is_hiring_now
-      ? `<span class="position-hiring-pill" title="Currently posted on governmentjobs.com">
-           ● Hiring now${pos.current_postings.length > 1 ? ` · ${pos.current_postings.length}` : ''}
-         </span>`
-      : '';
-
-    const salary = pos.salary
-      ? `<span class="position-meta-item salary">💰 ${escapeHtml(pos.salary)}</span>`
-      : '';
-
-    const grade = pos.grade
-      ? `<span class="position-meta-item">Grade ${escapeHtml(pos.grade)}</span>`
-      : '';
-
-    const union = pos.union_code
-      ? `<span class="position-meta-item">Union ${escapeHtml(pos.union_code)}</span>`
-      : '';
-
-    const mqs = pos.mqs_text
-      ? `<details class="position-mqs">
-          <summary>Minimum qualifications</summary>
-          <pre>${escapeHtml(pos.mqs_text)}</pre>
-        </details>`
-      : '';
-
-    const ladder = pos.ladder && pos.ladder.length > 1
-      ? renderLadder(pos.ladder)
-      : '';
-
-    const livePostings = pos.is_hiring_now ? renderLivePostings(pos.current_postings) : '';
-
-    const liveUrl   = pos.is_hiring_now && pos.current_postings[0]?.url;
-    const applyHref = liveUrl || pos.apply_url;
-    const applyLabel = pos.is_hiring_now
-      ? 'Apply now ↗'
-      : (pos.apply_url ? 'See current postings ↗' : 'Not yet posting');
-
-    const applyBtn = applyHref
-      ? `<a class="position-apply-btn ${pos.is_hiring_now ? 'position-apply-btn--hiring' : ''}"
-            href="${escapeHtml(applyHref)}"
-            target="_blank"
-            rel="noopener noreferrer">
-            ${applyLabel}
-         </a>`
-      : `<span class="position-apply-btn" style="opacity:0.4;cursor:default;">${applyLabel}</span>`;
-
-    card.innerHTML = `
-      <div class="position-header">
-        <div>
-          <div class="position-title">${escapeHtml(pos.title)} ${codeBadge} ${hiringPill}</div>
-          <div class="position-meta">${salary} ${grade} ${union}</div>
-        </div>
-        ${applyBtn}
-      </div>
-      ${livePostings}
-      ${ladder}
-      ${mqs}
-      ${pos.notes ? `<div class="position-notes">⚙ ${escapeHtml(pos.notes)}</div>` : ''}
-    `;
-    el.resultsList.appendChild(card);
-  });
-}
-
-function renderLivePostings(postings) {
-  if (postings.length <= 1) return '';
-  const items = postings.map(p => `
-    <li>
-      <a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">
-        ${escapeHtml(p.title)}
-      </a>
-      ${p.closes ? `<span class="live-posting-closes">closes ${escapeHtml(p.closes)}</span>` : ''}
-    </li>
-  `).join('');
-  return `
-    <div class="position-live-postings">
-      <div class="position-live-postings-label">${postings.length} current postings</div>
-      <ul>${items}</ul>
-    </div>
-  `;
-}
-
-function renderLadder(ladder) {
-  const steps = ladder.map(step => {
-    const cls  = step.is_entry ? 'ladder-step ladder-step--entry' : 'ladder-step';
-    const code = step.job_code && step.job_code !== 'NEW'
-      ? `<span class="ladder-code">${escapeHtml(step.job_code)}</span>`
-      : '';
-    return `<div class="${cls}">
-      <span class="ladder-step-num">${step.step}</span>
-      <span class="ladder-step-title">${escapeHtml(step.title)}</span>
-      ${code}
-    </div>`;
-  }).join('<span class="ladder-arrow">→</span>');
-  return `
-    <div class="position-ladder">
-      <div class="position-ladder-label">Career progression</div>
-      <div class="ladder-chain">${steps}</div>
-    </div>
-  `;
-}
-
-// =====================================================
-//   CLEAR / RESET
-// =====================================================
-
-function clearResultsDisplay() {
-  el.resultsList.innerHTML    = '';
-  el.resultsCount.textContent = '';
-  hide(el.noResults);
-  hide(el.apiUnavailable);
-  hide(el.loading);
-}
-
-function clearResults() {
-  clearResultsDisplay();
-  hide(el.resultsSection);
-  hide(el.pathwayInfoBar);
-  el.resultsHeading.textContent = 'County career opportunities';
-  state.selectedPathway         = null;
 }

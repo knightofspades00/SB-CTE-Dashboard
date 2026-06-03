@@ -30,6 +30,48 @@ HEADERS = {
     "User-Agent": "CTE-Job-Dashboard/1.0 (City of San Bernardino student portal)"
 }
 
+# Hardcoded coordinates for the 9 San Bernardino City Unified School District
+# campuses. Nominatim is unreliable for these (many are nested inside city blocks
+# and don't have their own OSM entry), so we apply these overrides up front and
+# only fall back to Nominatim for anything not in this map. Coordinates verified
+# against the SBCUSD prototype dashboard built by AniVation-Tech Academy.
+SBCUSD_OVERRIDES = {
+    "Arroyo Valley High School": (34.1188, -117.3287),
+    "Cajon High School":          (34.1772, -117.3104),
+    "Indian Springs High School": (34.1714, -117.2908),
+    "Pacific High":               (34.1292, -117.2648),
+    "San Andreas High":           (34.1295, -117.2156),
+    "San Bernardino High School": (34.1314, -117.2964),
+    "San Gorgonio High School":   (34.1260, -117.2372),
+    "Sierra High School":         (34.0875, -117.2489),
+    # Virtual Academy is online-only; pin to SBCUSD district HQ for the map.
+    "Virtual Academy":            (34.1083, -117.2934),
+}
+
+
+def apply_hardcoded_overrides():
+    """Set coords for every school in SBCUSD_OVERRIDES that lacks them in the DB."""
+    conn = get_connection()
+    try:
+        updated = 0
+        for name, (lat, lng) in SBCUSD_OVERRIDES.items():
+            row = conn.execute(
+                "SELECT id FROM schools WHERE name = ? AND (latitude IS NULL OR longitude IS NULL)",
+                (name,)
+            ).fetchone()
+            if not row:
+                continue
+            conn.execute(
+                "UPDATE schools SET latitude = ?, longitude = ? WHERE id = ?",
+                (lat, lng, row["id"])
+            )
+            updated += 1
+        conn.commit()
+        if updated:
+            print(f"  Applied {updated} hardcoded SBCUSD coordinate override(s).")
+    finally:
+        conn.close()
+
 def geocode_school(school_name, district, api_key=None):
     """
     Try progressively broader queries until we get a result.
@@ -74,7 +116,11 @@ def run_geocoding():
     Geocode every school that lacks coordinates by querying Nominatim with progressively broader
     queries until a result is found.  Updates the database row immediately after each success.
     Prints a list of schools that need manual coordinates at the end.
+
+    SBCUSD schools are seeded from the hardcoded override table first so we don't waste
+    Nominatim quota on campuses we already know.
     """
+    apply_hardcoded_overrides()
     conn = get_connection()
     try:
         schools = conn.execute("""
