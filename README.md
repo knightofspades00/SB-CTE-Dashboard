@@ -22,7 +22,7 @@ The CTE Job Dashboard gives students two ways to find jobs:
 - **"I have a pathway"** — A student picks their school and their CTE program. The app shows real local job listings that match that program.
 - **"I'm exploring careers"** — A student picks a career they're interested in. The app recommends which CTE programs lead to that career and shows matching job listings.
 
-Job listings are pulled in real time from two sources: **USA Jobs** (federal government positions) and **JSearch** (aggregates Indeed, LinkedIn, ZipRecruiter, and Glassdoor).
+Job listings are pulled in real time from **USA Jobs** (the official federal government jobs portal at usajobs.gov) and filtered to positions located within San Bernardino County.
 
 ---
 
@@ -60,9 +60,11 @@ The spreadsheet must have exactly three sheets with these names:
 
 If students see "Live job listings are temporarily unavailable":
 
-1. The USA Jobs or JSearch API may be temporarily down. This is normal — both services have occasional outages.
+1. The USA Jobs API may be temporarily down. This is normal — the service has occasional outages.
 2. The app will recover automatically when the service comes back.
 3. If the issue persists for more than a day, contact your engineering team to check the API keys.
+
+If listings simply look empty for a specific pathway, that usually means there are no current SBC County federal openings matching that field — not a bug.
 
 ---
 
@@ -155,14 +157,13 @@ FLASK_ENV=development
 USAJOBS_USER_AGENT=your-email@cityofsanbernardino.gov
 USAJOBS_API_KEY=your-usajobs-api-key-here
 
-# JSearch API (via RapidAPI)
-# Register at: https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
-# Free tier: 200 requests/month
-JSEARCH_API_KEY=your-rapidapi-key-here
-
 # Job search configuration
+# Radius is in miles, centred on JOB_SEARCH_LOCATION. The default 75 covers the
+# populated southwest of SB County AND the high-desert communities (Hesperia,
+# Victorville, Apple Valley, Barstow). Non-SB-County matches inside the radius
+# are dropped by the city whitelist in services/job_apis.py.
 JOB_SEARCH_LOCATION=San Bernardino, CA
-JOB_SEARCH_RADIUS=20
+JOB_SEARCH_RADIUS=75
 JOB_SEARCH_RESULTS_PER_PAGE=10
 
 # Database
@@ -205,7 +206,7 @@ cte_dashboard/
 │
 ├── services/
 │   ├── __init__.py
-│   ├── job_apis.py               ← USA Jobs + JSearch integrations + merge logic
+│   ├── job_apis.py               ← USA Jobs integration + SB County filter + dedupe
 │   └── cache_pipeline.py         ← Daily background job pre-fetch
 │
 ├── templates/
@@ -232,7 +233,7 @@ cte_dashboard/
 | GET | `/api/pathways/<id>` | Full pathway detail including schools and careers |
 | GET | `/api/pathways/by-career/<id>` | Pathways that lead to a given career (Flow 2) |
 | GET | `/api/careers` | All career titles |
-| GET | `/api/jobs?pathway_id=<id>` | Live job search — merges USA Jobs + JSearch |
+| GET | `/api/jobs?pathway_id=<id>` | Live SBC federal job search via USA Jobs |
 | GET | `/api/jobs/cached?pathway_id=<id>` | Pre-cached jobs from daily pipeline |
 
 Full request/response documentation is in `API_REFERENCE.md`.
@@ -263,15 +264,16 @@ python database/geocode_schools.py
 
 ## Job API architecture
 
-The app queries two APIs on every live job search and merges the results:
+The app queries one source per live job search: **USA Jobs** (`data.usajobs.gov`), the official federal government jobs portal.
 
-1. **USA Jobs** — federal government positions only. Free, no rate limit concerns. Searches within the configured radius of San Bernardino. Uses a 3-tier keyword fallback (specific → broader → sector) to ensure results for every pathway.
+1. The request is built with `LocationName=San Bernardino, CA` and `Radius=75` so the API only returns positions within that circle.
+2. A 3-tier keyword fallback (specific → broader → sector) runs against each pathway name so empty pathways still get a chance at results.
+3. Every returned position is then run through `_is_sb_county()` in `services/job_apis.py`, which checks the position's `LocationName` against a whitelist of SB County cities, unincorporated communities, and federal installations. Positions in Riverside / LA / Kern county that happened to fall inside the radius are dropped here.
+4. Results are deduplicated by `(title, employer)` and capped at 20 by `dedupe_jobs()`.
 
-2. **JSearch (RapidAPI)** — aggregates Indeed, LinkedIn, ZipRecruiter, and Glassdoor. Free tier: 200 requests/month. Returns local private employer listings that USA Jobs cannot cover.
+The dashboard is **government-jobs only** by design — private-sector aggregators (Indeed, LinkedIn, ZipRecruiter, JSearch, etc.) are deliberately not queried. If you ever need to add a new federal data source, add a `search_*` function next to `search_usajobs` in `services/job_apis.py` and update `routes/jobs.py` to combine its output before `dedupe_jobs()`.
 
-Results are merged and deduplicated by job title + employer before being returned. USA Jobs results appear first.
-
-**To add more job sources in the future:** Add a new `search_*` function to `services/job_apis.py` and include its result in the `merge_results()` call in `routes/jobs.py`. Placeholder functions for Adzuna, Indeed, and LinkedIn are already stubbed out in `job_apis.py`.
+**To extend SB County coverage:** edit `SB_COUNTY_LOCATIONS` in `services/job_apis.py`. Each entry is a lowercase city/community/installation name and matches the city portion of USAJobs' `LocationName` field.
 
 ---
 
@@ -325,9 +327,9 @@ The app uses **Leaflet.js with OpenStreetMap tiles** — completely free, no API
 
 | Issue | Cause | Planned fix |
 |---|---|---|
-| JSearch free tier caps at 200 requests/month | RapidAPI free plan limit | Upgrade to paid plan or add Adzuna as a second private-sector source |
-| USA Jobs only covers federal positions | By design — USA Jobs is federal only | JSearch covers private employers |
-| Some pathways return zero listings | No matching jobs in the area at search time | Expected behavior — counselor referral message is shown |
+| USA Jobs only covers federal positions | By design — this dashboard is government-jobs only | Out of scope; private listings are intentionally excluded |
+| Some pathways return zero listings | No matching federal openings in SB County at search time | Expected behavior — counselor referral message is shown |
+| A new SB County community returns nothing | Not yet on the `SB_COUNTY_LOCATIONS` whitelist | Add the lowercase city name to that set in `services/job_apis.py` |
 
 ---
 
@@ -337,7 +339,7 @@ The app uses **Leaflet.js with OpenStreetMap tiles** — completely free, no API
 |---|---|
 | `flask` | Web framework |
 | `python-dotenv` | Loads `.env` into environment |
-| `requests` | HTTP calls to job APIs |
+| `requests` | HTTP calls to the USA Jobs API |
 | `openpyxl` | Reads city Excel spreadsheets |
 | `schedule` | Cross-platform background job scheduler |
 | `gunicorn` | Production WSGI server (Linux/macOS) |

@@ -17,7 +17,10 @@ class Config:
     USAJOBS_API_KEY    = os.environ.get("USAJOBS_API_KEY", "")
     USAJOBS_BASE_URL   = "https://data.usajobs.gov/api/search"
     JOB_SEARCH_LOCATION         = os.environ.get("JOB_SEARCH_LOCATION", "San Bernardino, CA")
-    JOB_SEARCH_RADIUS           = int(os.environ.get("JOB_SEARCH_RADIUS", 25))
+    # Default radius covers the populated southwest of SB County AND the high desert
+    # (Hesperia ~30 mi, Victorville ~40 mi, Apple Valley ~40 mi, Barstow ~75 mi).
+    # The _is_sb_county() post-filter drops anything that falls inside the radius
+    # but outside the county, so a wider radius does not leak Riverside/LA county jobs.
+    JOB_SEARCH_RADIUS           = int(os.environ.get("JOB_SEARCH_RADIUS", 75))
     JOB_SEARCH_RESULTS_PER_PAGE = int(os.environ.get("JOB_SEARCH_RESULTS_PER_PAGE", 10))
     CACHE_REFRESH_HOURS = int(os.environ.get("CACHE_REFRESH_HOURS", 24))
-    JSEARCH_API_KEY = os.environ.get("JSEARCH_API_KEY", "")

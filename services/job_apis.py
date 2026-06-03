@@ -1,12 +1,18 @@
 """
 services/job_apis.py
 --------------------
-Job API integrations for the CTE Job Dashboard.
-Active sources:
-  1. USA Jobs  — federal government positions
-  2. JSearch   — aggregates Indeed, LinkedIn, ZipRecruiter, Glassdoor (via RapidAPI)
+USA Jobs integration for the CTE Job Dashboard.
 
-Results from both sources are merged and deduplicated before being returned.
+Scope: federal government positions located within San Bernardino County, CA.
+
+The API search is constrained by:
+  1. LocationName + Radius on the request side (geographic bounding circle).
+  2. _is_sb_county() post-filter that whitelists known SB County cities and
+     installations, dropping any neighbouring-county or out-of-county results
+     that fall inside the radius.
+
+JSearch and other private-sector aggregators have been removed by design — this
+dashboard is for SBC government job opportunities only.
 """
 
 import re
@@ -16,7 +22,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Shared keyword utilities
+# Keyword utilities
 # ---------------------------------------------------------------------------
 
 _STOP_WORDS = {
@@ -51,27 +57,64 @@ def build_keywords(pathway_name, sector=None):
 
 
 # ---------------------------------------------------------------------------
-# USA Jobs
+# San Bernardino County geographic filter
 # ---------------------------------------------------------------------------
 
-def _is_valid_location(locations):
-    """Return True if at least one position location is in California or marked remote/anywhere."""
+# Lowercased city / community / installation names that count as "inside SB County."
+# Add new entries here when USAJobs surfaces a valid SB County location that the
+# filter drops by mistake. Names match the city portion of USAJobs' LocationName,
+# i.e. "Barstow, California" → "barstow".
+SB_COUNTY_LOCATIONS = {
+    # Incorporated cities and towns
+    "adelanto", "apple valley", "barstow", "big bear lake", "chino",
+    "chino hills", "colton", "fontana", "grand terrace", "hesperia",
+    "highland", "loma linda", "montclair", "needles", "ontario",
+    "rancho cucamonga", "redlands", "rialto", "san bernardino",
+    "twentynine palms", "upland", "victorville", "yucaipa", "yucca valley",
+    # Unincorporated communities frequently named in postings
+    "big bear city", "bloomington", "crestline", "daggett", "devore",
+    "helendale", "joshua tree", "lake arrowhead", "lucerne valley",
+    "lytle creek", "mentone", "morongo valley", "mount baldy",
+    "muscoy", "newberry springs", "oak hills", "phelan", "pinon hills",
+    "running springs", "trona", "wonder valley", "wrightwood",
+    # Federal installations within SB County
+    "fort irwin", "marine corps air ground combat center",
+    "marine corps logistics base", "ntc fort irwin",
+}
+
+def _is_sb_county(locations):
+    """Return True if at least one listed location is within San Bernardino County.
+
+    Stricter than the previous "any CA job" check: requires both California state
+    AND a city/community on the SB_COUNTY_LOCATIONS whitelist. Remote and
+    out-of-county jobs are excluded so the dashboard stays geographically focused.
+    """
     if not locations:
-        return True
+        return False
     for loc in locations:
-        state = loc.get("CountrySubDivisionCode", "")
-        city  = loc.get("LocationName", "") or ""
-        if state == "CA":
-            return True
-        if "anywhere" in city.lower() or "remote" in city.lower():
+        state = (loc.get("CountrySubDivisionCode") or "").strip()
+        # USAJobs returns either the state code ("CA") or full name ("California").
+        if state not in ("CA", "California"):
+            continue
+        name = (loc.get("LocationName") or "").strip().lower()
+        if not name:
+            continue
+        # LocationName is typically "City, State" — keep the city portion only.
+        city = name.split(",", 1)[0].strip()
+        if city in SB_COUNTY_LOCATIONS:
             return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# USA Jobs
+# ---------------------------------------------------------------------------
 
 def _usajobs_single(keyword, location, radius, results_per_page, page, user_agent, api_key):
     """
     Execute one USA Jobs API search and return normalised job dicts.
     Returns {"jobs": [...], "error": None} on success or {"jobs": [], "error": str} on failure.
-    Jobs outside California (and not remote) are filtered out by _is_valid_location.
+    Jobs outside San Bernardino County are filtered out by _is_sb_county.
     """
     headers = {
         "User-Agent":        user_agent,
@@ -111,7 +154,7 @@ def _usajobs_single(keyword, location, radius, results_per_page, page, user_agen
     for item in items:
         matched   = item.get("MatchedObjectDescriptor", {})
         locations = matched.get("PositionLocation", [])
-        if not _is_valid_location(locations):
+        if not _is_sb_county(locations):
             continue
         org      = matched.get("OrganizationName", "")
         dept     = matched.get("DepartmentName", "")
@@ -162,99 +205,19 @@ def search_usajobs(keyword, location, radius, results_per_page, page, user_agent
 
 
 # ---------------------------------------------------------------------------
-# JSearch (RapidAPI) — aggregates Indeed, LinkedIn, ZipRecruiter, Glassdoor
+# Result post-processing
 # ---------------------------------------------------------------------------
 
-def search_jsearch(keyword, location, api_key, results_per_page=10):
-    """
-    Searches JSearch via RapidAPI.
-    Returns jobs from Indeed, LinkedIn, ZipRecruiter, and Glassdoor combined.
-    Free tier: 200 requests/month.
-    results_per_page caps the returned list (JSearch always returns one page of ~10
-    items per request; we cap client-side so callers actually get what they asked for).
-    """
-    if not api_key:
-        logger.warning("JSEARCH_API_KEY not set — skipping JSearch.")
-        return {"jobs": [], "total": 0, "error": "JSearch API key not configured."}
-
-    headers = {
-        "X-RapidAPI-Key":  api_key,
-        "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
-    }
-    params = {
-        "query":          f"{keyword} in {location}",
-        "page":           "1",
-        "num_pages":      "1",
-        "date_posted":    "month",
-        "employment_types": "FULLTIME,PARTTIME",
-    }
-
-    try:
-        response = requests.get(
-            "https://jsearch.p.rapidapi.com/search",
-            headers=headers, params=params, timeout=20
-        )
-    except requests.exceptions.Timeout:
-        return {"jobs": [], "total": 0, "error": "JSearch timed out."}
-    except requests.exceptions.ConnectionError:
-        return {"jobs": [], "total": 0, "error": "Could not connect to JSearch."}
-    except Exception as e:
-        return {"jobs": [], "total": 0, "error": f"JSearch unexpected error: {e}"}
-
-    if response.status_code == 401 or response.status_code == 403:
-        return {"jobs": [], "total": 0, "error": "JSearch authentication failed — check your RapidAPI key."}
-    if response.status_code == 429:
-        return {"jobs": [], "total": 0, "error": "JSearch rate limit reached."}
-    if response.status_code != 200:
-        return {"jobs": [], "total": 0, "error": f"JSearch HTTP {response.status_code}"}
-
-    data  = response.json()
-    items = data.get("data", [])
-    jobs  = []
-
-    for item in items:
-        salary = None
-        try:
-            min_sal = float(item.get("job_min_salary") or 0)
-            max_sal = float(item.get("job_max_salary") or 0)
-        except (ValueError, TypeError):
-            min_sal = max_sal = 0
-        if min_sal > 0 and max_sal > 0:
-            period = item.get("job_salary_period", "year")
-            salary = f"${min_sal:,.0f} – ${max_sal:,.0f} / {period}"
-
-        jobs.append({
-            "title":     item.get("job_title", "Unknown Title"),
-            "employer":  item.get("employer_name", "Unknown Employer"),
-            "location":  f"{item.get('job_city', '')}, {item.get('job_state', '')}".strip(", "),
-            "salary":    salary,
-            "posted":    item.get("job_posted_at_datetime_utc"),
-            "apply_url": item.get("job_apply_link", ""),
-            "source":    "jsearch",
-        })
-
-    jobs = jobs[:results_per_page]
-    logger.info(f"JSearch returned {len(jobs)} jobs for '{keyword}'")
-    return {"jobs": jobs, "total": len(jobs), "error": None}
-
-
-# ---------------------------------------------------------------------------
-# Merge utility — combines and deduplicates results from all sources
-# ---------------------------------------------------------------------------
-
-def merge_results(results_list, max_total=20):
-    """
-    Takes a list of result dicts from multiple APIs.
-    Deduplicates by job title + employer (case-insensitive).
-    USA Jobs results come first, then JSearch.
-    Caps at max_total.
-    """
+def dedupe_jobs(jobs, max_total=20):
+    """Deduplicate jobs by (title, employer) case-insensitively and cap at max_total."""
     seen = set()
-    merged = []
-    for result in results_list:
-        for job in result.get("jobs", []):
-            key = (job.get("title", "").lower().strip(), job.get("employer", "").lower().strip())
-            if key not in seen:
-                seen.add(key)
-                merged.append(job)
-    return merged[:max_total]
+    out  = []
+    for job in jobs:
+        key = (job.get("title", "").lower().strip(), job.get("employer", "").lower().strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(job)
+        if len(out) >= max_total:
+            break
+    return out

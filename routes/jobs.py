@@ -1,7 +1,8 @@
 """
 routes/jobs.py — REST endpoints for live and cached job listings (/api/jobs).
-Resolves a pathway_id to a search keyword, fans out to USA Jobs and JSearch,
-merges the results, and falls back gracefully when both APIs are unavailable.
+Resolves a pathway_id to a search keyword, queries USA Jobs (federal government
+positions in San Bernardino County only), and falls back gracefully when the
+service is unavailable.
 """
 
 import sqlite3
@@ -9,7 +10,7 @@ import sqlite3
 from flask import Blueprint, jsonify, request, current_app
 
 from database.connection import get_db
-from services.job_apis import search_usajobs, search_jsearch, merge_results
+from services.job_apis import search_usajobs, dedupe_jobs
 
 jobs_bp = Blueprint("jobs", __name__)
 
@@ -23,8 +24,9 @@ def sanitize_int(value, name="parameter"):
 @jobs_bp.route("/api/jobs", methods=["GET"])
 def get_jobs():
     """
-    Live job search for a pathway.  Queries USA Jobs and JSearch in parallel keyword tiers,
-    merges results, and returns a 503 with a student-friendly message if both APIs fail.
+    Live SB County federal job search for a pathway.  Queries USA Jobs with
+    progressive keyword tiers, deduplicates, and returns a 503 with a
+    student-friendly message if the service is unavailable.
     Required query param: pathway_id (int).  Optional: page (int, default 1).
     """
     pathway_id_raw = request.args.get("pathway_id")
@@ -53,7 +55,6 @@ def get_jobs():
     if not pathway:
         return jsonify({"error": "Pathway not found"}), 404
 
-    # --- USA Jobs ---
     usajobs_result = search_usajobs(
         keyword=pathway["name"],
         location=current_app.config["JOB_SEARCH_LOCATION"],
@@ -65,20 +66,9 @@ def get_jobs():
         sector=pathway["sector"],
     )
 
-    # --- JSearch ---
-    jsearch_result = search_jsearch(
-        keyword=pathway["name"],
-        location=current_app.config["JOB_SEARCH_LOCATION"],
-        api_key=current_app.config["JSEARCH_API_KEY"],
-        results_per_page=current_app.config["JOB_SEARCH_RESULTS_PER_PAGE"],
-    )
+    jobs = dedupe_jobs(usajobs_result.get("jobs", []))
 
-    # --- Merge ---
-    merged = merge_results([usajobs_result, jsearch_result])
-
-    # Both APIs failed
-    both_failed = bool(usajobs_result.get("error")) and bool(jsearch_result.get("error"))
-    if both_failed and not merged:
+    if usajobs_result.get("error") and not jobs:
         return jsonify({
             "pathway":       dict(pathway),
             "jobs":          [],
@@ -89,14 +79,11 @@ def get_jobs():
 
     return jsonify({
         "pathway":       dict(pathway),
-        "jobs":          merged,
-        "total":         len(merged),
+        "jobs":          jobs,
+        "total":         len(jobs),
         "page":          page,
         "api_available": True,
-        "sources": {
-            "usajobs": len(usajobs_result.get("jobs", [])),
-            "jsearch":  len(jsearch_result.get("jobs", [])),
-        }
+        "source":        "usajobs",
     })
 
 @jobs_bp.route("/api/jobs/cached", methods=["GET"])
