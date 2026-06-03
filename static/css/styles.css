@@ -1,0 +1,619 @@
+/* =====================================================
+   CTE JOB DASHBOARD — Full Stylesheet
+   City of San Bernardino Student Portal
+   ===================================================== */
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --color-primary:       #1a4f8a;
+    --color-primary-dark:  #0f2f54;
+    --color-primary-light: #e8f0fa;
+    --color-accent:        #e07b1a;
+    --color-accent-light:  #fef3e2;
+    --color-success:       #1e7e34;
+    --color-warn:          #856404;
+    --color-warn-bg:       #fff3cd;
+    --color-danger:        #c0392b;
+    --color-text:          #1a1a1a;
+    --color-text-mid:      #444;
+    --color-text-light:    #666;
+    --color-border:        #d0d7de;
+    --color-bg:            #f4f6f9;
+    --color-white:         #ffffff;
+    --radius:              8px;
+    --radius-lg:           12px;
+    --shadow-sm:           0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md:           0 4px 12px rgba(0,0,0,0.10);
+    --shadow-lg:           0 8px 24px rgba(0,0,0,0.12);
+    --font:                'Segoe UI', system-ui, -apple-system, sans-serif;
+    --transition:          0.2s ease;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+    font-family: var(--font);
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+    font-size: 16px;
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+/* --- App wrapper --- */
+#app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1rem 2rem;
+}
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+#site-header {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+    color: var(--color-white);
+    padding: 1.5rem 2rem;
+    margin: 0 -1rem 1.5rem;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+#header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+#header-text h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+#header-text p {
+    opacity: 0.85;
+    font-size: 0.95rem;
+    margin-top: 0.2rem;
+}
+
+#header-badge span {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--color-white);
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+/* =====================================================
+   MAP
+   ===================================================== */
+#map-section {
+    margin-bottom: 1.5rem;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border);
+}
+
+#map-label {
+    background: var(--color-primary-light);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    color: var(--color-primary-dark);
+    font-weight: 500;
+}
+
+#map {
+    width: 100%;
+    height: 420px;
+    background: #e8eaed;
+}
+
+/* =====================================================
+   CONTROLS — DUAL FLOW
+   ===================================================== */
+#controls-section {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+
+.flow-panel {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition);
+}
+
+.flow-panel:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.flow-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.flow-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.flow-header h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    margin-bottom: 0.15rem;
+}
+
+.flow-sub {
+    font-size: 0.82rem;
+    color: var(--color-text-light);
+    line-height: 1.4;
+}
+
+/* Divider between flows */
+#flow-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 3rem;
+}
+
+#flow-divider span {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-light);
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Form fields */
+.field-group {
+    margin-bottom: 1rem;
+}
+
+.field-group:last-child {
+    margin-bottom: 0;
+}
+
+.field-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-mid);
+    margin-bottom: 0.35rem;
+}
+
+.select-wrap {
+    position: relative;
+}
+
+.select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-light);
+    pointer-events: none;
+    font-size: 0.8rem;
+}
+
+select {
+    width: 100%;
+    padding: 0.6rem 2rem 0.6rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-white);
+    color: var(--color-text);
+    font-size: 0.9rem;
+    font-family: var(--font);
+    appearance: none;
+    cursor: pointer;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(26,79,138,0.15);
+}
+
+select:disabled {
+    background: #f5f5f5;
+    color: var(--color-text-light);
+    cursor: not-allowed;
+}
+
+/* Pathway recommendation cards (Flow 2) */
+#pathway-recommendations {
+    margin-top: 1rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 1rem;
+}
+
+.rec-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-mid);
+    margin-bottom: 0.5rem;
+}
+
+#pathway-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pathway-rec-card {
+    background: var(--color-primary-light);
+    border: 1px solid #c0d3ed;
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.pathway-rec-card:hover {
+    background: #d0e3f5;
+    border-color: var(--color-primary);
+}
+
+.pathway-rec-card.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary-dark);
+    color: var(--color-white);
+}
+
+.pathway-rec-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.pathway-rec-sector {
+    font-size: 0.78rem;
+    opacity: 0.75;
+    margin-top: 0.1rem;
+}
+
+.pathway-rec-schools {
+    font-size: 0.78rem;
+    margin-top: 0.3rem;
+    opacity: 0.85;
+}
+
+/* =====================================================
+   LOADING SPINNER
+   ===================================================== */
+#loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem;
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+}
+
+.spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* =====================================================
+   RESULTS PANEL
+   ===================================================== */
+#results-section {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+}
+
+#results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
+}
+
+#results-heading {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+}
+
+#results-count {
+    font-size: 0.82rem;
+    color: var(--color-text-light);
+    background: var(--color-border);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+}
+
+/* Pathway info bar */
+#pathway-info-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1.5rem;
+    background: var(--color-primary-light);
+    border-bottom: 1px solid #c0d3ed;
+    font-size: 0.85rem;
+    gap: 1rem;
+}
+
+#pathway-info-inner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+#pathway-info-name {
+    font-weight: 600;
+    color: var(--color-primary-dark);
+}
+
+#pathway-info-sector {
+    color: var(--color-text-light);
+    font-size: 0.78rem;
+}
+
+#clear-results-btn {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.25rem 0.65rem;
+    font-size: 0.78rem;
+    color: var(--color-text-light);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition), color var(--transition);
+}
+
+#clear-results-btn:hover {
+    background: var(--color-danger);
+    color: var(--color-white);
+    border-color: var(--color-danger);
+}
+
+/* Job cards list */
+#results-list {
+    padding: 1rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.job-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem 1rem;
+    align-items: start;
+    transition: box-shadow var(--transition), border-color var(--transition);
+    background: var(--color-white);
+}
+
+.job-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-primary);
+}
+
+.job-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    grid-column: 1;
+}
+
+.job-apply-btn {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    display: inline-block;
+    background: var(--color-primary);
+    color: var(--color-white);
+    padding: 0.5rem 1.1rem;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    transition: background var(--transition);
+    text-decoration: none;
+}
+
+.job-apply-btn:hover {
+    background: var(--color-primary-dark);
+    text-decoration: none;
+}
+
+.job-meta {
+    grid-column: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    font-size: 0.82rem;
+    color: var(--color-text-light);
+}
+
+.job-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.job-meta-item.salary {
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+.job-source-tag {
+    grid-column: 1 / -1;
+    font-size: 0.72rem;
+    color: var(--color-text-light);
+    opacity: 0.7;
+}
+
+/* State boxes — no results / error */
+.state-box {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    color: var(--color-text-mid);
+}
+
+.state-box--warn {
+    background: var(--color-warn-bg);
+}
+
+.state-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.state-box h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+}
+
+.state-box p {
+    font-size: 0.9rem;
+    max-width: 480px;
+    margin: 0.25rem auto;
+    line-height: 1.5;
+}
+
+/* =====================================================
+   FOOTER
+   ===================================================== */
+#site-footer {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    border-top: 1px solid var(--color-border);
+    line-height: 1.8;
+}
+
+/* =====================================================
+   RESPONSIVE — MOBILE
+   ===================================================== */
+@media (max-width: 768px) {
+    #controls-section {
+        grid-template-columns: 1fr;
+    }
+
+    #flow-divider {
+        padding-top: 0;
+        justify-content: center;
+    }
+
+    #site-header {
+        padding: 1.25rem 1rem;
+        border-radius: 0;
+        margin: 0 -1rem 1rem;
+    }
+
+    #header-text h1 {
+        font-size: 1.4rem;
+    }
+
+    #map {
+        height: 280px;
+    }
+
+    .job-card {
+        grid-template-columns: 1fr;
+    }
+
+    .job-apply-btn {
+        grid-column: 1;
+        grid-row: auto;
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+
+    #results-list {
+        padding: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    body { font-size: 15px; }
+
+    #header-badge { display: none; }
+
+    .flow-panel {
+        padding: 1.1rem;
+    }
+}
+
+/* =====================================================
+   ACCESSIBILITY
+   ===================================================== */
+:focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
+    * { transition: none !important; }
+}
