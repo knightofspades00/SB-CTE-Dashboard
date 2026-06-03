@@ -438,9 +438,16 @@ function renderPositionCards(positions) {
     const card = document.createElement('div');
     card.className = 'position-card';
     if (pos.job_code === 'NEW') card.classList.add('position-card--new');
+    if (pos.is_hiring_now)      card.classList.add('position-card--hiring');
 
     const codeBadge = pos.job_code
       ? `<span class="position-code">${escapeHtml(pos.job_code)}</span>`
+      : '';
+
+    const hiringPill = pos.is_hiring_now
+      ? `<span class="position-hiring-pill" title="Currently posted on governmentjobs.com">
+           ● Hiring now${pos.current_postings.length > 1 ? ` · ${pos.current_postings.length}` : ''}
+         </span>`
       : '';
 
     const salary = pos.salary
@@ -466,24 +473,35 @@ function renderPositionCards(positions) {
       ? renderLadder(pos.ladder)
       : '';
 
-    const applyBtn = pos.apply_url
-      ? `<a class="position-apply-btn"
-            href="${escapeHtml(pos.apply_url)}"
+    const livePostings = pos.is_hiring_now ? renderLivePostings(pos.current_postings) : '';
+
+    // Prefer the first live posting URL when one exists; fall back to the
+    // catalog-level keyword-search URL (apply_url) otherwise.
+    const liveUrl   = pos.is_hiring_now && pos.current_postings[0]?.url;
+    const applyHref = liveUrl || pos.apply_url;
+    const applyLabel = pos.is_hiring_now
+      ? 'Apply now ↗'
+      : (pos.apply_url ? 'See current postings ↗' : 'Not yet posting');
+
+    const applyBtn = applyHref
+      ? `<a class="position-apply-btn ${pos.is_hiring_now ? 'position-apply-btn--hiring' : ''}"
+            href="${escapeHtml(applyHref)}"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="See current postings for ${escapeHtml(pos.title)} on governmentjobs.com">
-            See current postings ↗
+            aria-label="${escapeHtml(pos.is_hiring_now ? 'Apply for ' + pos.title : 'See current postings for ' + pos.title)} on governmentjobs.com">
+            ${applyLabel}
          </a>`
-      : `<span class="position-apply-btn" style="opacity:0.4;cursor:default;">Not yet posting</span>`;
+      : `<span class="position-apply-btn" style="opacity:0.4;cursor:default;">${applyLabel}</span>`;
 
     card.innerHTML = `
       <div class="position-header">
         <div>
-          <div class="position-title">${escapeHtml(pos.title)} ${codeBadge}</div>
+          <div class="position-title">${escapeHtml(pos.title)} ${codeBadge} ${hiringPill}</div>
           <div class="position-meta">${salary} ${grade} ${union}</div>
         </div>
         ${applyBtn}
       </div>
+      ${livePostings}
       ${ladder}
       ${mqs}
       ${pos.notes ? `<div class="position-notes">⚙ ${escapeHtml(pos.notes)}</div>` : ''}
@@ -491,6 +509,26 @@ function renderPositionCards(positions) {
 
     el.resultsList.appendChild(card);
   });
+}
+
+function renderLivePostings(postings) {
+  // Only render the "live postings" detail block when there are multiple
+  // current postings — for a single posting the Apply button already covers it.
+  if (postings.length <= 1) return '';
+  const items = postings.map(p => `
+    <li>
+      <a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">
+        ${escapeHtml(p.title)}
+      </a>
+      ${p.closes ? `<span class="live-posting-closes">closes ${escapeHtml(p.closes)}</span>` : ''}
+    </li>
+  `).join('');
+  return `
+    <div class="position-live-postings">
+      <div class="position-live-postings-label">${postings.length} current postings</div>
+      <ul>${items}</ul>
+    </div>
+  `;
 }
 
 function renderLadder(ladder) {

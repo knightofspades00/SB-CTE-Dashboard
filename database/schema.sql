@@ -84,6 +84,26 @@ CREATE TABLE IF NOT EXISTS position_ladder_steps (
     UNIQUE(entry_position_id, step_number)
 );
 
+-- ---------------------------------------------------------------------------
+-- Live "currently hiring" overlay
+--
+-- Wiped and rebuilt by services/refresh_postings.py — each row is a posting
+-- that was open on governmentjobs.com/careers/sanbernardino at fetch time AND
+-- matched a county_positions title. The presence of any rows for a position
+-- drives the green "Hiring now" pill in the UI; their posting_url overrides
+-- the catalog-level keyword-search apply_url.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS current_postings (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    position_id        INTEGER NOT NULL REFERENCES county_positions(id) ON DELETE CASCADE,
+    posting_title      TEXT    NOT NULL,
+    posting_url        TEXT    NOT NULL,
+    posting_close_date TEXT,
+    fetched_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_pathways_program ON pathways(cte_program_id);
 CREATE INDEX IF NOT EXISTS idx_county_positions_program ON county_positions(cte_program_id);
 CREATE INDEX IF NOT EXISTS idx_ladder_position ON position_ladder_steps(entry_position_id);
+CREATE INDEX IF NOT EXISTS idx_current_postings_position ON current_postings(position_id);

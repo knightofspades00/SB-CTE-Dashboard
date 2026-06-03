@@ -1,6 +1,7 @@
 .env
 database/*.db
 database/CTE_Connections.xlsx
+database/currently_hiring.json
 __pycache__/
 *.py[cod]
 venv/

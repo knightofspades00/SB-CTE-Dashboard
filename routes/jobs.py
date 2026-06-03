@@ -109,6 +109,7 @@ def get_jobs_for_pathway():
         # Fetch ladder steps for every position in one query, then group in Python.
         position_ids = [p["id"] for p in positions]
         ladder_by_pos = {pid: [] for pid in position_ids}
+        postings_by_pos = {pid: [] for pid in position_ids}
         if position_ids:
             placeholders = ",".join("?" * len(position_ids))
             ladder_rows = conn.execute(
@@ -127,6 +128,22 @@ def get_jobs_for_pathway():
                     "job_code": r["job_code"],
                     "notes":    r["notes"],
                 })
+            posting_rows = conn.execute(
+                f"""
+                SELECT position_id, posting_title, posting_url, posting_close_date, fetched_at
+                FROM current_postings
+                WHERE position_id IN ({placeholders})
+                ORDER BY position_id, posting_title
+                """,
+                position_ids,
+            ).fetchall()
+            for r in posting_rows:
+                postings_by_pos[r["position_id"]].append({
+                    "title":      r["posting_title"],
+                    "url":        r["posting_url"],
+                    "closes":     r["posting_close_date"],
+                    "fetched_at": r["fetched_at"],
+                })
     except sqlite3.Error as e:
         current_app.logger.error(f"DB error in get_jobs_for_pathway: {e}")
         return jsonify({"error": "Database error"}), 500
@@ -141,6 +158,8 @@ def get_jobs_for_pathway():
         ] + [
             {**step, "is_entry": False} for step in ladder_by_pos[p["id"]]
         ]
+        d["current_postings"] = postings_by_pos[p["id"]]
+        d["is_hiring_now"]    = bool(d["current_postings"])
         positions_out.append(d)
 
     return jsonify({
@@ -187,6 +206,15 @@ def get_position_detail(position_id):
             """,
             (position_id,),
         ).fetchall()
+        postings = conn.execute(
+            """
+            SELECT posting_title, posting_url, posting_close_date, fetched_at
+            FROM current_postings
+            WHERE position_id = ?
+            ORDER BY posting_title
+            """,
+            (position_id,),
+        ).fetchall()
     except sqlite3.Error as e:
         current_app.logger.error(f"DB error in get_position_detail: {e}")
         return jsonify({"error": "Database error"}), 500
@@ -198,6 +226,16 @@ def get_position_detail(position_id):
         "id":   position["cte_program_id"],
         "name": position["program_name"],
     }
+    data["current_postings"] = [
+        {
+            "title":      r["posting_title"],
+            "url":        r["posting_url"],
+            "closes":     r["posting_close_date"],
+            "fetched_at": r["fetched_at"],
+        }
+        for r in postings
+    ]
+    data["is_hiring_now"] = bool(data["current_postings"])
     data["ladder"] = [
         {
             "step":     1,

@@ -181,7 +181,8 @@ SB-CTE-Dashboard/
 │   ├── programs.py                 ← /api/programs, /api/programs/<id>
 │   └── jobs.py                     ← /api/jobs?pathway_id=<id>, /api/positions/<id>
 │
-├── services/                       ← Reserved for future integrations
+├── services/
+│   └── refresh_postings.py         ← Daily NeoGov scrape → current_postings (Playwright + JSON fallback)
 │
 ├── templates/
 │   └── index.html                  ← Single-page app shell
@@ -224,6 +225,7 @@ SB-CTE-Dashboard/
 | `cte_programs` | 10 | The county's CTE program groupings (Automotive, ICT, Patient Care, …) |
 | `county_positions` | 42 | County entry-level classifications with MQ, pay band, governmentjobs link |
 | `position_ladder_steps` | ~120 | Career-ladder progression steps beyond each entry position |
+| `current_postings` | varies | Live "Hiring now" overlay — refreshed by services/refresh_postings.py |
 
 To reset and re-import everything:
 
@@ -279,6 +281,62 @@ Authentication is **not built into this app.** It is handled externally by the c
 ## Map
 
 The app uses **Leaflet.js with OpenStreetMap tiles** — completely free, no API key required. School markers are rendered from `/api/schools`. Coordinates are stored on the `schools` table and populated by `database/geocode_schools.py`.
+
+---
+
+## Live "Hiring now" overlay
+
+The catalog by itself shows the 42 entry-level classifications regardless of whether they are currently posting. To highlight roles that are actively recruiting on `governmentjobs.com/careers/sanbernardino` right now, the dashboard also maintains a small `current_postings` table that is refreshed daily by `services/refresh_postings.py`.
+
+Two ways to populate it:
+
+### Option A — Live scrape (recommended)
+
+NeoGov's portal renders job listings entirely via client-side JavaScript, so we need a headless browser. Playwright handles it:
+
+```bash
+# One-time install of Playwright + Chromium
+pip install playwright
+playwright install chromium
+
+# Each refresh:
+python services/refresh_postings.py
+```
+
+Schedule this to run once a day via:
+
+- **Windows Task Scheduler** — create a Basic Task → daily → Action: "Start a program" → Program: `python.exe`, Arguments: `services/refresh_postings.py`, Start in: project folder.
+- **Linux / macOS cron** — `0 6 * * * cd /path/to/SB-CTE-Dashboard && /path/to/venv/bin/python services/refresh_postings.py >> /var/log/cte-refresh.log 2>&1`
+
+### Option B — Hand-edited JSON
+
+If Playwright is not an option (or you want to seed test data), create `database/currently_hiring.json` with the open postings you want to surface. The refresh script reads it as a fallback when Playwright is unavailable.
+
+```json
+[
+  {
+    "title":  "Office Assistant",
+    "url":    "https://www.governmentjobs.com/jobs/12345-1/office-assistant",
+    "closes": "2026-06-30"
+  },
+  {
+    "title":  "GIS Technician Trainee",
+    "url":    "https://www.governmentjobs.com/jobs/12346-1/gis-technician-trainee"
+  }
+]
+```
+
+Then run `python services/refresh_postings.py --json`. The file is gitignored — it's session data, not source code.
+
+### What the overlay drives
+
+When at least one row exists in `current_postings` for a position:
+
+- A green **● Hiring now** pill appears on the position card
+- The Apply button text changes from "See current postings" to "Apply now" and points at the live posting URL instead of the keyword search
+- If multiple postings match (e.g. several Office Assistant openings in different departments), the card lists each one with its closing date
+
+When `current_postings` is empty (initial state, or after a refresh found nothing matching), the dashboard falls back to keyword-search Apply links — the same behaviour shipped before the overlay was added.
 
 ---
 
