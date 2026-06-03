@@ -3,21 +3,13 @@ routes/careers.py — REST endpoint for career data (/api/careers).
 Returns all careers with a count of the CTE pathways linked to each.
 """
 
-from flask import Blueprint, jsonify, current_app
 import sqlite3
-import os
+
+from flask import Blueprint, jsonify, current_app
+
+from database.connection import get_db
 
 careers_bp = Blueprint("careers", __name__)
-
-def get_db():
-    """Open and return a SQLite connection with Row factory enabled."""
-    db_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        current_app.config["DATABASE_PATH"]
-    )
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 @careers_bp.route("/api/careers", methods=["GET"])
 def get_careers():

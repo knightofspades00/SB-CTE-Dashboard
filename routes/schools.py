@@ -3,21 +3,13 @@ routes/schools.py — REST endpoints for school data (/api/schools).
 Exposes a list of all schools with pathway counts, and per-school pathway lookups.
 """
 
-from flask import Blueprint, jsonify, current_app
 import sqlite3
-import os
+
+from flask import Blueprint, jsonify, current_app
+
+from database.connection import get_db
 
 schools_bp = Blueprint("schools", __name__)
-
-def get_db():
-    """Open and return a SQLite connection with Row factory enabled."""
-    db_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        current_app.config["DATABASE_PATH"]
-    )
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 @schools_bp.route("/api/schools", methods=["GET"])
 def get_schools():

@@ -4,23 +4,14 @@ Resolves a pathway_id to a search keyword, fans out to USA Jobs and JSearch,
 merges the results, and falls back gracefully when both APIs are unavailable.
 """
 
-from flask import Blueprint, jsonify, request, current_app
 import sqlite3
-import os
 
+from flask import Blueprint, jsonify, request, current_app
+
+from database.connection import get_db
 from services.job_apis import search_usajobs, search_jsearch, merge_results
 
 jobs_bp = Blueprint("jobs", __name__)
-
-def get_db():
-    """Open and return a SQLite connection with Row factory enabled."""
-    db_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        current_app.config["DATABASE_PATH"]
-    )
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 def sanitize_int(value, name="parameter"):
     """Parse value as int; return (int, None) on success or (None, error_response) on failure."""

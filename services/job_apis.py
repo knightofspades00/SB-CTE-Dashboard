@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 _STOP_WORDS = {
     "and", "or", "the", "of", "in", "for", "a", "an", "to", "with",
     "by", "at", "from", "into", "through", "during", "including",
-    "&", "-", "services", "studies", "study", "systems", "design",
-    "management", "technology", "technologies", "advanced",
+    "&", "-", "studies", "study", "advanced",
 }
 
 def _clean(text):
@@ -171,6 +170,8 @@ def search_jsearch(keyword, location, api_key, results_per_page=10):
     Searches JSearch via RapidAPI.
     Returns jobs from Indeed, LinkedIn, ZipRecruiter, and Glassdoor combined.
     Free tier: 200 requests/month.
+    results_per_page caps the returned list (JSearch always returns one page of ~10
+    items per request; we cap client-side so callers actually get what they asked for).
     """
     if not api_key:
         logger.warning("JSEARCH_API_KEY not set — skipping JSearch.")
@@ -212,16 +213,15 @@ def search_jsearch(keyword, location, api_key, results_per_page=10):
     jobs  = []
 
     for item in items:
-        # Build salary string if available
         salary = None
-        min_sal = item.get("job_min_salary")
-        max_sal = item.get("job_max_salary")
-        period  = item.get("job_salary_period", "year")
-        if min_sal and max_sal:
-            try:
-                salary = f"${float(min_sal):,.0f} – ${float(max_sal):,.0f} / {period}"
-            except (ValueError, TypeError):
-                pass
+        try:
+            min_sal = float(item.get("job_min_salary") or 0)
+            max_sal = float(item.get("job_max_salary") or 0)
+        except (ValueError, TypeError):
+            min_sal = max_sal = 0
+        if min_sal > 0 and max_sal > 0:
+            period = item.get("job_salary_period", "year")
+            salary = f"${min_sal:,.0f} – ${max_sal:,.0f} / {period}"
 
         jobs.append({
             "title":     item.get("job_title", "Unknown Title"),
@@ -233,6 +233,7 @@ def search_jsearch(keyword, location, api_key, results_per_page=10):
             "source":    "jsearch",
         })
 
+    jobs = jobs[:results_per_page]
     logger.info(f"JSearch returned {len(jobs)} jobs for '{keyword}'")
     return {"jobs": jobs, "total": len(jobs), "error": None}
 

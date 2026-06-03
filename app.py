@@ -28,11 +28,8 @@ def create_app():
 
     @app.route("/")
     def index():
-        """Render the main dashboard page, injecting the Google Maps API key for the frontend."""
-        return render_template(
-            "index.html",
-            google_maps_api_key=app.config["GOOGLE_MAPS_API_KEY"]
-        )
+        """Render the main dashboard page."""
+        return render_template("index.html")
 
     @app.route("/health")
     def health():

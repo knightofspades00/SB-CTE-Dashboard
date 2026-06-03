@@ -160,9 +160,6 @@ USAJOBS_API_KEY=your-usajobs-api-key-here
 # Free tier: 200 requests/month
 JSEARCH_API_KEY=your-rapidapi-key-here
 
-# Google Maps (used only if switching back from Leaflet)
-GOOGLE_MAPS_API_KEY=your-google-maps-api-key-here
-
 # Job search configuration
 JOB_SEARCH_LOCATION=San Bernardino, CA
 JOB_SEARCH_RADIUS=20

@@ -4,21 +4,13 @@ Provides pathway listings, detail views with linked schools and careers,
 and a reverse-lookup to find pathways that lead to a given career.
 """
 
-from flask import Blueprint, jsonify, current_app
 import sqlite3
-import os
+
+from flask import Blueprint, jsonify, current_app
+
+from database.connection import get_db
 
 pathways_bp = Blueprint("pathways", __name__)
-
-def get_db():
-    """Open and return a SQLite connection with Row factory enabled."""
-    db_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        current_app.config["DATABASE_PATH"]
-    )
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 @pathways_bp.route("/api/pathways", methods=["GET"])
 def get_pathways():
@@ -81,24 +73,44 @@ def get_pathways_by_career(career_id):
         career = conn.execute("SELECT id, name FROM careers WHERE id = ?", (career_id,)).fetchone()
         if not career:
             return jsonify({"error": "Career not found"}), 404
-        pathways = conn.execute("""
-            SELECT p.id, p.name, p.sector, p.description
+        rows = conn.execute("""
+            SELECT p.id          AS pathway_id,
+                   p.name        AS pathway_name,
+                   p.sector      AS pathway_sector,
+                   p.description AS pathway_description,
+                   s.id          AS school_id,
+                   s.name        AS school_name,
+                   s.district    AS school_district,
+                   s.latitude    AS school_latitude,
+                   s.longitude   AS school_longitude
             FROM pathways p
             JOIN pathway_careers pc ON p.id = pc.pathway_id
+            LEFT JOIN school_pathways sp ON p.id = sp.pathway_id
+            LEFT JOIN schools s ON sp.school_id = s.id
             WHERE pc.career_id = ?
-            ORDER BY p.sector NULLS LAST, p.name
+            ORDER BY p.sector NULLS LAST, p.name, s.district, s.name
         """, (career_id,)).fetchall()
-        result = []
-        for pw in pathways:
-            schools = conn.execute("""
-                SELECT s.id, s.name, s.district, s.latitude, s.longitude
-                FROM schools s
-                JOIN school_pathways sp ON s.id = sp.school_id
-                WHERE sp.pathway_id = ?
-                ORDER BY s.district, s.name
-            """, (pw["id"],)).fetchall()
-            result.append({**dict(pw), "schools": [dict(s) for s in schools]})
-        return jsonify({"career": dict(career), "pathways": result})
+
+        by_pathway = {}
+        for r in rows:
+            pid = r["pathway_id"]
+            if pid not in by_pathway:
+                by_pathway[pid] = {
+                    "id":          pid,
+                    "name":        r["pathway_name"],
+                    "sector":      r["pathway_sector"],
+                    "description": r["pathway_description"],
+                    "schools":     [],
+                }
+            if r["school_id"] is not None:
+                by_pathway[pid]["schools"].append({
+                    "id":        r["school_id"],
+                    "name":      r["school_name"],
+                    "district":  r["school_district"],
+                    "latitude":  r["school_latitude"],
+                    "longitude": r["school_longitude"],
+                })
+        return jsonify({"career": dict(career), "pathways": list(by_pathway.values())})
     except sqlite3.Error as e:
         current_app.logger.error(f"DB error in get_pathways_by_career: {e}")
         return jsonify({"error": "Database error"}), 500

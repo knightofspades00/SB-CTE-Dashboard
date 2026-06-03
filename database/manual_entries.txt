@@ -1,7 +1,7 @@
  python database/geocode_schools.py --manual "School Name" 34.000000 -117.000000
 
  Schools that need manual coordinates:
-  - Bartsow High School
+  - Barstow High School
   - Chautauqua High School
   - Beaumont Middle College High School
   - Glen View High School
