@@ -765,6 +765,198 @@ select:disabled {
 }
 
 /* =====================================================
+   /programs PAGE
+   ===================================================== */
+
+.header-nav-link {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--color-white);
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background var(--transition);
+}
+
+.header-nav-link:hover {
+    background: rgba(255,255,255,0.25);
+    text-decoration: none;
+    color: var(--color-white);
+}
+
+.programs-toc {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.programs-toc-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-light);
+    margin-bottom: 0.5rem;
+}
+
+.programs-toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.programs-toc a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--color-primary-light);
+    border: 1px solid #c0d3ed;
+    border-radius: var(--radius);
+    padding: 0.3rem 0.7rem;
+    color: var(--color-primary-dark);
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.programs-toc a:hover {
+    background: #d0e3f5;
+    text-decoration: none;
+    border-color: var(--color-primary);
+}
+
+.programs-toc-count {
+    background: rgba(15, 47, 84, 0.15);
+    color: var(--color-primary-dark);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+}
+
+.programs-toc-hiring {
+    color: var(--color-success);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.program-section {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    scroll-margin-top: 5rem; /* room for sticky TOC */
+}
+
+.program-section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.6rem;
+    margin-bottom: 0.85rem;
+}
+
+.program-section-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    margin: 0;
+}
+
+.program-anchor {
+    color: var(--color-text-light);
+    font-size: 0.85rem;
+    margin-left: 0.4rem;
+    opacity: 0;
+    transition: opacity var(--transition);
+    text-decoration: none;
+}
+
+.program-section-header h2:hover .program-anchor {
+    opacity: 1;
+}
+
+.program-section-meta {
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+}
+
+.program-section-hiring {
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+.program-section-desc {
+    color: var(--color-text-mid);
+    font-size: 0.92rem;
+    margin-bottom: 1rem;
+    line-height: 1.55;
+}
+
+.program-section-empty {
+    color: var(--color-text-light);
+    font-style: italic;
+    font-size: 0.88rem;
+}
+
+.program-positions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.footer-refresh {
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+    margin-top: 0.4rem;
+}
+
+.footer-refresh code {
+    background: var(--color-border);
+    padding: 0.05rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+}
+
+/* Print-friendly: clean layout for counselors who print a program's page */
+@media print {
+    .programs-toc, #site-header, #site-footer {
+        display: none;
+    }
+    .program-section {
+        page-break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #999;
+    }
+    .position-card {
+        break-inside: avoid;
+    }
+    .position-mqs[open] pre {
+        max-height: none;
+    }
+}
+
+/* =====================================================
    FOOTER
    ===================================================== */
 #site-footer {

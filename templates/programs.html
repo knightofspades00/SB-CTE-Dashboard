@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Browse all 10 San Bernardino County CTE programs and their entry-level positions, minimum qualifications, pay bands, and career-ladder progressions.">
+    <title>All CTE Programs — San Bernardino County CTE Career Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="programs-page">
+
+    <div id="app">
+
+        <header id="site-header">
+            <div id="header-inner">
+                <div id="header-text">
+                    <h1>All CTE Programs</h1>
+                    <p>San Bernardino County entry-level positions, by program.</p>
+                </div>
+                <div id="header-badge">
+                    <a href="{{ url_for('index') }}" class="header-nav-link">← Dashboard</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sticky table of contents -->
+        <nav class="programs-toc" aria-label="Program navigation">
+            <div class="programs-toc-label">Jump to program:</div>
+            <ul>
+                {% for prog in programs %}
+                <li>
+                    <a href="#{{ prog.slug }}">
+                        {{ prog.name }}
+                        <span class="programs-toc-count">{{ prog.position_count }}</span>
+                        {% if prog.posting_count %}
+                        <span class="programs-toc-hiring">● {{ prog.posting_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+
+        <!-- Each program section -->
+        {% for prog in programs %}
+        <section class="program-section" id="{{ prog.slug }}" aria-labelledby="{{ prog.slug }}-h">
+            <div class="program-section-header">
+                <h2 id="{{ prog.slug }}-h">
+                    {{ prog.name }}
+                    <a href="#{{ prog.slug }}" class="program-anchor" aria-label="Permalink to {{ prog.name }}">¶</a>
+                </h2>
+                <div class="program-section-meta">
+                    <span>{{ prog.position_count }} entry position{{ '' if prog.position_count == 1 else 's' }}</span>
+                    {% if prog.posting_count %}
+                    <span class="program-section-hiring">● {{ prog.posting_count }} hiring now</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if prog.description %}
+            <p class="program-section-desc">{{ prog.description }}</p>
+            {% endif %}
+
+            {% if not prog.positions %}
+            <p class="program-section-empty">No positions tied to this program yet.</p>
+            {% else %}
+            <div class="program-positions">
+                {% for pos in prog.positions %}
+                <div class="position-card
+                            {% if pos.job_code == 'NEW' %}position-card--new{% endif %}
+                            {% if pos.is_hiring_now %}position-card--hiring{% endif %}">
+                    <div class="position-header">
+                        <div>
+                            <div class="position-title">
+                                {{ pos.title }}
+                                {% if pos.job_code %}
+                                <span class="position-code">{{ pos.job_code }}</span>
+                                {% endif %}
+                                {% if pos.is_hiring_now %}
+                                <span class="position-hiring-pill" title="Currently posted on governmentjobs.com">
+                                    ● Hiring now{% if pos.current_postings|length > 1 %} · {{ pos.current_postings|length }}{% endif %}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="position-meta">
+                                {% if pos.salary %}<span class="position-meta-item salary">💰 {{ pos.salary }}</span>{% endif %}
+                                {% if pos.grade %}<span class="position-meta-item">Grade {{ pos.grade }}</span>{% endif %}
+                                {% if pos.union_code %}<span class="position-meta-item">Union {{ pos.union_code }}</span>{% endif %}
+                            </div>
+                        </div>
+                        {% if pos.primary_apply_url %}
+                        <a class="position-apply-btn {% if pos.is_hiring_now %}position-apply-btn--hiring{% endif %}"
+                           href="{{ pos.primary_apply_url }}"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                            {% if pos.is_hiring_now %}Apply now ↗{% else %}See current postings ↗{% endif %}
+                        </a>
+                        {% else %}
+                        <span class="position-apply-btn" style="opacity:0.4;cursor:default;">Not yet posting</span>
+                        {% endif %}
+                    </div>
+
+                    {% if pos.is_hiring_now and pos.current_postings|length > 1 %}
+                    <div class="position-live-postings">
+                        <div class="position-live-postings-label">{{ pos.current_postings|length }} current postings</div>
+                        <ul>
+                            {% for post in pos.current_postings %}
+                            <li>
+                                <a href="{{ post.url }}" target="_blank" rel="noopener noreferrer">{{ post.title }}</a>
+                                {% if post.closes %}<span class="live-posting-closes">closes {{ post.closes }}</span>{% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if pos.ladder and pos.ladder|length > 1 %}
+                    <div class="position-ladder">
+                        <div class="position-ladder-label">Career progression</div>
+                        <div class="ladder-chain">
+                            {% for step in pos.ladder %}
+                            <div class="ladder-step {% if step.is_entry %}ladder-step--entry{% endif %}">
+                                <span class="ladder-step-num">{{ step.step }}</span>
+                                <span class="ladder-step-title">{{ step.title }}</span>
+                                {% if step.job_code and step.job_code != 'NEW' %}
+                                <span class="ladder-code">{{ step.job_code }}</span>
+                                {% endif %}
+                            </div>
+                            {% if not loop.last %}<span class="ladder-arrow">→</span>{% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if pos.mqs_text %}
+                    <details class="position-mqs">
+                        <summary>Minimum qualifications</summary>
+                        <pre>{{ pos.mqs_text }}</pre>
+                    </details>
+                    {% endif %}
+
+                    {% if pos.notes %}
+                    <div class="position-notes">⚙ {{ pos.notes }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endfor %}
+
+        <footer id="site-footer">
+            <p>Position catalog provided by the <strong>County of San Bernardino</strong>. Current openings at <a href="https://www.governmentjobs.com/careers/sanbernardino" target="_blank" rel="noopener">governmentjobs.com/careers/sanbernardino</a>.</p>
+            {% if last_refresh %}
+            <p class="footer-refresh">"Hiring now" overlay last refreshed: <time datetime="{{ last_refresh }}">{{ last_refresh }}</time> UTC</p>
+            {% else %}
+            <p class="footer-refresh">"Hiring now" overlay has not been refreshed yet — run <code>python services/refresh_postings.py</code>.</p>
+            {% endif %}
+        </footer>
+
+    </div>
+</body>
+</html>
