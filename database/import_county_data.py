@@ -27,7 +27,7 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 from config.settings import Config
 
-GOVJOBS_BASE = "https://www.governmentjobs.com/careers/sbcounty"
+GOVJOBS_BASE = "https://www.governmentjobs.com/careers/sanbernardino"
 
 # ---------------------------------------------------------------------------
 # 10 CTE Programs (top-level grouping the county uses)

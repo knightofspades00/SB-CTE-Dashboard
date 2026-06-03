@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS county_positions (
     max_hourly         REAL,
     mqs_text           TEXT,    -- full minimum-qualifications text from the county
     notes              TEXT,
-    apply_url          TEXT,    -- deep link to governmentjobs.com/careers/sbcounty search
+    apply_url          TEXT,    -- deep link to governmentjobs.com/careers/sanbernardino search
     UNIQUE(title, cte_program_id)
 );
 

@@ -22,7 +22,7 @@ The dashboard gives students two ways to explore county careers:
 - **"I have a pathway"** — A student picks their school and CTE pathway. The app shows the county's entry-level positions tied to that pathway's program, with minimum qualifications, pay range, and the full progression ladder up to supervisor.
 - **"I'm exploring careers"** — A student picks a career they're interested in. The app recommends which CTE pathways lead to that career and shows the same county positions.
 
-Position data is **provided by the County of San Bernardino** — a curated catalog of entry-level classifications organised into ten CTE program groups (Automotive, Arts/Media, Business, Patient Care, Building & Construction, Education/Child Dev/Family Services, Energy/Environment/Utilities, Hospitality, ICT, Public Service). Each position links to the live county jobs portal at [governmentjobs.com/careers/sbcounty](https://www.governmentjobs.com/careers/sbcounty) so students can see whether the role is currently posting and apply.
+Position data is **provided by the County of San Bernardino** — a curated catalog of entry-level classifications organised into ten CTE program groups (Automotive, Arts/Media, Business, Patient Care, Building & Construction, Education/Child Dev/Family Services, Energy/Environment/Utilities, Hospitality, ICT, Public Service). Each position links to the live county jobs portal at [governmentjobs.com/careers/sanbernardino](https://www.governmentjobs.com/careers/sanbernardino) so students can see whether the role is currently posting and apply.
 
 ---
 
@@ -249,7 +249,7 @@ The flow when a student picks a pathway:
 1. The frontend hits `/api/jobs?pathway_id=<id>`.
 2. The route looks up the pathway's `cte_program_id` (back-filled from the pathway's sector by `import_county_data.py`).
 3. It returns the program metadata, the positions tied to that program (with MQ text, pay band, and the ladder chain), and the deep link to current postings on governmentjobs.com.
-4. Apply buttons open `https://www.governmentjobs.com/careers/sbcounty?keywords=<title>` so students see whether the classification is currently hiring.
+4. Apply buttons open `https://www.governmentjobs.com/careers/sanbernardino?keywords=<title>` so students see whether the classification is currently hiring.
 
 When the county publishes a new MQ revision or adds a classification, edit `POSITIONS`/`LADDERS` in `database/import_county_data.py` and re-run it. Idempotent — existing rows upsert in place.
 
