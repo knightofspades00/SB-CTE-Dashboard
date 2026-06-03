@@ -31,6 +31,53 @@ def get_schools():
     finally:
         conn.close()
 
+@schools_bp.route("/api/schools/full", methods=["GET"])
+def get_schools_full():
+    """Return every school enriched with its pathway IDs and county-program IDs.
+
+    Single payload designed for the map frontend: the page loads this once at
+    startup and filters in-memory as the student tweaks the filter chips
+    (pathway, program, district). Faster and simpler than firing one request
+    per filter combination.
+    """
+    conn = get_db()
+    try:
+        schools = conn.execute("""
+            SELECT s.id, s.name, s.district, s.latitude, s.longitude
+            FROM schools s
+            ORDER BY s.district, s.name
+        """).fetchall()
+        pathway_rows = conn.execute("""
+            SELECT sp.school_id, sp.pathway_id, p.cte_program_id
+            FROM school_pathways sp
+            JOIN pathways p ON sp.pathway_id = p.id
+        """).fetchall()
+    except sqlite3.Error as e:
+        current_app.logger.error(f"DB error in get_schools_full: {e}")
+        return jsonify({"error": "Database error"}), 500
+    finally:
+        conn.close()
+
+    pathway_ids = {s["id"]: [] for s in schools}
+    program_ids = {s["id"]: set() for s in schools}
+    for r in pathway_rows:
+        sid = r["school_id"]
+        if sid not in pathway_ids:
+            continue
+        pathway_ids[sid].append(r["pathway_id"])
+        if r["cte_program_id"] is not None:
+            program_ids[sid].add(r["cte_program_id"])
+
+    out = []
+    for s in schools:
+        d = dict(s)
+        d["pathway_ids"] = pathway_ids[s["id"]]
+        d["program_ids"] = sorted(program_ids[s["id"]])
+        d["pathway_count"] = len(d["pathway_ids"])
+        out.append(d)
+    return jsonify(out)
+
+
 @schools_bp.route("/api/schools/<int:school_id>/pathways", methods=["GET"])
 def get_school_pathways(school_id):
     """Return a school's metadata and its list of offered pathways; 404 if the school doesn't exist."""

@@ -104,6 +104,79 @@ a:hover { text-decoration: underline; }
 }
 
 /* =====================================================
+   FILTER BAR — primary map control
+   ===================================================== */
+#filter-bar {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1.4fr 1fr auto auto;
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.filter-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.filter-cell label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-light);
+}
+
+.filter-cell select {
+    /* select base style already declared below; here is fine to inherit */
+}
+
+.filter-actions {
+    align-self: end;
+}
+
+#clear-filters-btn {
+    background: var(--color-white);
+    color: var(--color-text-mid);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.55rem 0.95rem;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+#clear-filters-btn:hover {
+    background: var(--color-bg);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.filter-status {
+    align-self: end;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    padding-bottom: 0.45rem;
+    white-space: nowrap;
+}
+
+.filter-status--active {
+    color: var(--color-primary-dark);
+    font-weight: 600;
+}
+
+/* =====================================================
    MAP
    ===================================================== */
 #map-section {
@@ -112,21 +185,210 @@ a:hover { text-decoration: underline; }
     overflow: hidden;
     box-shadow: var(--shadow-md);
     border: 1px solid var(--color-border);
-}
-
-#map-label {
-    background: var(--color-primary-light);
-    border-bottom: 1px solid var(--color-border);
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-    color: var(--color-primary-dark);
-    font-weight: 500;
+    position: relative;
 }
 
 #map {
     width: 100%;
-    height: 420px;
+    height: 540px;
     background: #e8eaed;
+}
+
+#map-legend {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 500;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 0.6rem 0.85rem;
+    font-size: 0.78rem;
+    color: var(--color-text-mid);
+    max-width: 240px;
+}
+
+.map-legend-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-light);
+    margin-bottom: 0.3rem;
+}
+
+#map-legend ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+#map-legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.legend-dot--match    { background: #1a4f8a; width: 14px; height: 14px; }
+.legend-dot--selected { background: #e07b1a; width: 16px; height: 16px; }
+.legend-dot--dim      { background: #cfd5dc; width: 10px; height: 10px; box-shadow: none; }
+
+/* =====================================================
+   SELECTED-SCHOOL DETAIL PANEL
+   ===================================================== */
+#school-detail {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.school-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+
+.school-detail-header h2 {
+    font-size: 1.15rem;
+    color: var(--color-primary-dark);
+    margin: 0;
+}
+
+.school-detail-header p {
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    margin-top: 0.15rem;
+}
+
+#clear-school-btn {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.25rem 0.6rem;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+#clear-school-btn:hover {
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+    color: var(--color-white);
+}
+
+.school-detail-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-light);
+    margin-bottom: 0.5rem;
+}
+
+#school-pathway-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.pathway-chip {
+    background: var(--color-primary-light);
+    border: 1px solid #c0d3ed;
+    border-radius: var(--radius);
+    padding: 0.4rem 0.7rem;
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition);
+    font-family: var(--font);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.pathway-chip:hover {
+    background: #d0e3f5;
+    border-color: var(--color-primary);
+}
+
+.pathway-chip.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary-dark);
+    color: var(--color-white);
+}
+
+.pathway-chip-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-primary-dark);
+}
+
+.pathway-chip.active .pathway-chip-name {
+    color: var(--color-white);
+}
+
+.pathway-chip-sector {
+    font-size: 0.7rem;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.pathway-chip.active .pathway-chip-sector {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* =====================================================
+   ALTERNATE FLOWS (collapsed details element)
+   ===================================================== */
+#alt-flows {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+#alt-flows > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    font-size: 0.95rem;
+    padding: 0.25rem 0;
+    user-select: none;
+}
+
+#alt-flows > summary:hover {
+    color: var(--color-primary);
+}
+
+#alt-flows[open] > summary {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.85rem;
 }
 
 /* =====================================================
@@ -972,6 +1234,21 @@ select:disabled {
    RESPONSIVE — MOBILE
    ===================================================== */
 @media (max-width: 768px) {
+    .filter-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .filter-cell.filter-actions,
+    .filter-cell.filter-status {
+        grid-column: span 2;
+        text-align: left;
+    }
+
+    #map-legend {
+        position: static;
+        margin: 0.5rem;
+        max-width: none;
+    }
+
     #controls-section {
         grid-template-columns: 1fr;
     }
@@ -992,7 +1269,7 @@ select:disabled {
     }
 
     #map {
-        height: 280px;
+        height: 380px;
     }
 
     .job-card {

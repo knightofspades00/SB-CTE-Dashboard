@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="San Bernardino County entry-level career paths tied to high school CTE programs.">
+    <meta name="description" content="Interactive GIS map of San Bernardino County high schools filterable by CTE pathway and career program.">
     <title>CTE Career Dashboard — San Bernardino County</title>
 
     <!-- Leaflet CSS — free map, no API key needed -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
     <!-- Dashboard styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
@@ -25,7 +27,7 @@
             <div id="header-inner">
                 <div id="header-text">
                     <h1>CTE Career Dashboard</h1>
-                    <p>San Bernardino County entry-level positions tied to your CTE pathway.</p>
+                    <p>San Bernardino County high schools, filterable by CTE pathway.</p>
                 </div>
                 <div id="header-badge">
                     <a href="{{ url_for('programs.render_programs_page') }}" class="header-nav-link">Browse all programs →</a>
@@ -34,80 +36,67 @@
         </header>
 
         <!-- ========================
-             MAP
+             MAP FILTER BAR — primary interface
         ========================= -->
-        <section id="map-section" aria-label="School map">
-            <div id="map-label">
-                <span>📍 Click your school on the map, or use the dropdowns below</span>
+        <section id="filter-bar" aria-label="Filter the map">
+            <div class="filter-row">
+                <div class="filter-cell">
+                    <label for="filter-program">CTE Program</label>
+                    <select id="filter-program" aria-label="Filter by County CTE program">
+                        <option value="">All 10 programs</option>
+                    </select>
+                </div>
+                <div class="filter-cell">
+                    <label for="filter-pathway">Pathway</label>
+                    <select id="filter-pathway" aria-label="Filter by school CTE pathway">
+                        <option value="">All pathways</option>
+                    </select>
+                </div>
+                <div class="filter-cell">
+                    <label for="filter-district">District</label>
+                    <select id="filter-district" aria-label="Filter by school district">
+                        <option value="">All districts</option>
+                    </select>
+                </div>
+                <div class="filter-cell filter-actions">
+                    <button id="clear-filters-btn" type="button" aria-label="Clear all filters">Clear</button>
+                </div>
+                <div class="filter-cell filter-status">
+                    <span id="filter-count" aria-live="polite">Loading…</span>
+                </div>
             </div>
-            <div id="map" role="application" aria-label="Interactive map of schools"></div>
         </section>
 
         <!-- ========================
-             DUAL FLOW CONTROLS
+             MAP
         ========================= -->
-        <section id="controls-section" aria-label="Search controls">
-
-            <!-- Flow 1 — I have a pathway -->
-            <div id="flow-1" class="flow-panel">
-                <div class="flow-header">
-                    <span class="flow-number">1</span>
-                    <div>
-                        <h2>I have a CTE pathway</h2>
-                        <p class="flow-sub">Select your school and pathway to find matching jobs</p>
-                    </div>
-                </div>
-
-                <div class="field-group">
-                    <label for="school-select">Your school</label>
-                    <div class="select-wrap">
-                        <select id="school-select" aria-label="Select your school">
-                            <option value="">-- Choose a school --</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="field-group">
-                    <label for="pathway-select">Your CTE pathway</label>
-                    <div class="select-wrap">
-                        <select id="pathway-select" disabled aria-label="Select your pathway">
-                            <option value="">-- Choose a school first --</option>
-                        </select>
-                    </div>
-                </div>
+        <section id="map-section" aria-label="School map">
+            <div id="map" role="application" aria-label="Interactive map of San Bernardino County high schools"></div>
+            <div id="map-legend" aria-label="Map legend">
+                <div class="map-legend-title">Legend</div>
+                <ul>
+                    <li><span class="legend-dot legend-dot--match"></span> Matches your filter</li>
+                    <li><span class="legend-dot legend-dot--selected"></span> Selected school</li>
+                    <li><span class="legend-dot legend-dot--dim"></span> Doesn't match</li>
+                </ul>
             </div>
+        </section>
 
-            <div id="flow-divider">
-                <span>or</span>
+        <!-- ========================
+             SELECTED-SCHOOL DETAIL
+        ========================= -->
+        <section id="school-detail" hidden aria-label="Selected school details" aria-live="polite">
+            <div class="school-detail-header">
+                <div>
+                    <h2 id="school-detail-name"></h2>
+                    <p id="school-detail-district"></p>
+                </div>
+                <button id="clear-school-btn" type="button" aria-label="Clear selected school">✕</button>
             </div>
-
-            <!-- Flow 2 — I'm exploring careers -->
-            <div id="flow-2" class="flow-panel">
-                <div class="flow-header">
-                    <span class="flow-number">2</span>
-                    <div>
-                        <h2>I'm exploring careers</h2>
-                        <p class="flow-sub">Pick a career goal and find the pathway that gets you there</p>
-                    </div>
-                </div>
-
-                <div class="field-group">
-                    <label for="career-select">Career you're interested in</label>
-                    <div class="select-wrap">
-                        <select id="career-select" aria-label="Select a career">
-                            <option value="">-- Choose a career --</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Flow 2 pathway recommendations appear here -->
-                <div id="pathway-recommendations" hidden>
-                    <p class="rec-label">Recommended pathways for this career:</p>
-                    <div id="pathway-cards"></div>
-                </div>
-
+            <div id="school-detail-pathways">
+                <p class="school-detail-label">CTE pathways offered:</p>
+                <div id="school-pathway-chips"></div>
             </div>
-
         </section>
 
         <!-- ========================
@@ -121,7 +110,7 @@
         <!-- ========================
              RESULTS PANEL
         ========================= -->
-        <section id="results-section" hidden aria-label="Job results" aria-live="polite">
+        <section id="results-section" hidden aria-label="County positions" aria-live="polite">
 
             <div id="results-header">
                 <h2 id="results-heading">County career opportunities</h2>
@@ -137,7 +126,7 @@
                 <button id="clear-results-btn" aria-label="Clear results">✕ Clear</button>
             </div>
 
-            <!-- Job cards render here -->
+            <!-- Position cards render here -->
             <div id="results-list"></div>
 
             <!-- Zero results state -->
@@ -163,6 +152,74 @@
         </section>
 
         <!-- ========================
+             ALTERNATE FLOWS (collapsed by default)
+        ========================= -->
+        <details id="alt-flows">
+            <summary>Other ways to explore</summary>
+
+            <div id="controls-section" aria-label="Alternate search controls">
+
+                <!-- Flow 1 — I have a pathway -->
+                <div id="flow-1" class="flow-panel">
+                    <div class="flow-header">
+                        <span class="flow-number">1</span>
+                        <div>
+                            <h3>I have a CTE pathway</h3>
+                            <p class="flow-sub">Pick your school and pathway from the dropdowns.</p>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="school-select">Your school</label>
+                        <div class="select-wrap">
+                            <select id="school-select" aria-label="Select your school">
+                                <option value="">-- Choose a school --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="pathway-select">Your CTE pathway</label>
+                        <div class="select-wrap">
+                            <select id="pathway-select" disabled aria-label="Select your pathway">
+                                <option value="">-- Choose a school first --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="flow-divider">
+                    <span>or</span>
+                </div>
+
+                <!-- Flow 2 — I'm exploring careers -->
+                <div id="flow-2" class="flow-panel">
+                    <div class="flow-header">
+                        <span class="flow-number">2</span>
+                        <div>
+                            <h3>I'm exploring careers</h3>
+                            <p class="flow-sub">Pick a career goal and find a matching pathway.</p>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="career-select">Career you're interested in</label>
+                        <div class="select-wrap">
+                            <select id="career-select" aria-label="Select a career">
+                                <option value="">-- Choose a career --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="pathway-recommendations" hidden>
+                        <p class="rec-label">Recommended pathways for this career:</p>
+                        <div id="pathway-cards"></div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <!-- ========================
              FOOTER
         ========================= -->
         <footer id="site-footer">
@@ -174,6 +231,7 @@
 
     <!-- Leaflet JS — loads before app.js so the L object is available -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <!-- Dashboard logic -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
