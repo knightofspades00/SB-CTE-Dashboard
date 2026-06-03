@@ -350,7 +350,17 @@ function selectSchool(school, { preferredProgramId = null } = {}) {
         btn.type = 'button';
         btn.className = 'p2p-pathway';
         btn.dataset.pid = pw.id;
-        btn.textContent = pw.name;
+        // A pathway is "hiring" if its tied county program has any current
+        // posting. Same rule as the program chips and the map markers — the
+        // overlay flows down to the leaf interaction.
+        const isHiring = pw.cte_program_id && state.hiringProgramIds.has(pw.cte_program_id);
+        btn.innerHTML = `
+          <span class="p2p-pathway-name">${escapeHtml(pw.name)}</span>
+          ${isHiring ? '<span class="p2p-pathway-hiring" title="Has a position hiring now">●</span>' : ''}
+          ${pw.cte_program_id === null
+            ? '<span class="p2p-pathway-untied" title="No county program tied to this pathway yet">○</span>'
+            : ''}
+        `;
         btn.addEventListener('click', () => onPathwayClick(pw));
         group.appendChild(btn);
       });

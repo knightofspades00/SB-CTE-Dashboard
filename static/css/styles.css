@@ -1635,7 +1635,9 @@ select:disabled {
 }
 
 .p2p-pathway {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     width: 100%;
     text-align: left;
     padding: 0.45rem 0.6rem;
@@ -1649,6 +1651,25 @@ select:disabled {
     font-size: 0.78rem;
     font-weight: 500;
     color: var(--p2p-ink);
+}
+
+.p2p-pathway-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.p2p-pathway-hiring {
+    color: var(--p2p-green);
+    font-size: 0.85rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.p2p-pathway-untied {
+    color: var(--p2p-ink-f);
+    font-size: 0.7rem;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .p2p-pathway:hover {
