@@ -2075,3 +2075,551 @@ select:disabled {
         padding: 0.4rem 1rem;
     }
 }
+
+/* ============================================================================
+   GIS DASHBOARD LAYOUT — full-bleed map + floating widget overlays.
+   Activated by .p2p-gis on <body>. Earlier 3-column .p2p-main is now unused
+   when the body has .p2p-gis (it remains styled in case some other page
+   reuses the class).
+   ============================================================================ */
+
+.p2p-body.p2p-gis {
+    height:        100vh;
+    width:         100vw;
+    overflow:      hidden;
+    position:      relative;
+    background:    #e4e7ec;
+    display:       block;
+    flex-direction: initial;
+}
+
+.p2p-gis #map {
+    position: absolute;
+    top:      0 !important;
+    left:     0 !important;
+    right:    0 !important;
+    bottom:   0 !important;
+    width:    100% !important;
+    height:   100% !important;
+    z-index:  1;
+    background: #d0d5dc;
+}
+
+/* Common widget styling: semi-transparent glass tile with backdrop blur.
+   Widgets sit ABOVE the drawers (z-index 700 vs drawer's 600) so the
+   right drawer can never block clicks on layer toggles or the legend. */
+.p2p-widget {
+    position: absolute;
+    z-index:  700;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 10px;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.10),
+        0 2px 6px rgba(0, 0, 0, 0.08);
+    color: var(--p2p-ink);
+    font-family: var(--p2p-fs-sans);
+}
+
+.p2p-widget-title {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--p2p-ink-m);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.45rem;
+}
+
+.p2p-widget-sep {
+    height: 1px;
+    background: rgba(0, 0, 0, 0.08);
+    margin: 0.5rem 0 0.4rem;
+}
+
+/* ── TOP-LEFT: brand + chip filter ─────────────────────────── */
+.p2p-widget--top-left {
+    top: 0.75rem;
+    left: 0.75rem;
+    right: auto;
+    max-width: 480px;
+    min-width: 360px;
+    padding: 0.7rem 0.85rem 0.6rem;
+    background: linear-gradient(135deg, rgba(110, 21, 39, 0.95) 0%, rgba(74, 14, 26, 0.94) 100%);
+    color: #fff;
+    border: 1px solid rgba(212, 160, 18, 0.35);
+}
+
+.p2p-brand-tag {
+    display: inline-block;
+    background: rgba(240, 194, 48, 0.18);
+    color: var(--p2p-gold-b);
+    border: 1px solid rgba(240, 194, 48, 0.32);
+    padding: 0.08rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.54rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.p2p-brand h1 {
+    font-family: var(--p2p-fs-serif);
+    font-size: 1.25rem;
+    font-weight: 400;
+    color: #fff;
+    line-height: 1.1;
+    margin: 0;
+}
+.p2p-brand h1 em {
+    color: var(--p2p-gold-b);
+    font-style: italic;
+}
+.p2p-brand-sub {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.65rem;
+    margin-top: 0.18rem;
+    max-width: 50ch;
+    line-height: 1.3;
+}
+
+#brand-bar .p2p-chip-bar {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0.45rem 0 0;
+    margin-top: 0.5rem;
+    background: transparent;
+    border-bottom: none;
+    gap: 0.3rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+#brand-bar .p2p-chip-label {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.58rem;
+}
+#brand-bar .p2p-chip {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid transparent;
+    color: var(--p2p-ink);
+    font-size: 0.65rem;
+    padding: 0.18rem 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+#brand-bar .p2p-chip:hover {
+    background: #fff;
+}
+#brand-bar .p2p-chip--active {
+    background: var(--p2p-gold-b);
+    color: var(--p2p-mar-d);
+    border-color: var(--p2p-gold-b);
+}
+#brand-bar .p2p-chip--reset {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px dashed rgba(255, 255, 255, 0.35);
+}
+#brand-bar .p2p-chip--reset:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.p2p-chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.p2p-brand-actions {
+    margin-top: 0.5rem;
+}
+.p2p-brand-actions .p2p-nav-link {
+    background: rgba(240, 194, 48, 0.18);
+    border: 1px solid rgba(240, 194, 48, 0.32);
+    color: var(--p2p-gold-b);
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+}
+.p2p-brand-actions .p2p-nav-link:hover {
+    background: var(--p2p-gold-b);
+    color: var(--p2p-mar);
+}
+
+/* ── TOP-RIGHT: KPI tiles ─────────────────────────────────── */
+.p2p-widget--top-right {
+    top: 0.75rem;
+    right: 0.75rem;
+    padding: 0.55rem 0.7rem;
+    display: flex;
+    gap: 0.45rem;
+}
+.p2p-stats-widget .p2p-stat {
+    text-align: center;
+    padding: 0 0.4rem;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+.p2p-stats-widget .p2p-stat:last-child {
+    border-right: none;
+}
+.p2p-stats-widget .p2p-stat-n {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--p2p-mar);
+    line-height: 1;
+}
+.p2p-stats-widget .p2p-stat--hiring .p2p-stat-n {
+    color: var(--p2p-green);
+}
+.p2p-stats-widget .p2p-stat-l {
+    font-size: 0.5rem;
+    color: var(--p2p-ink-m);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 0.18rem;
+    line-height: 1.15;
+}
+
+/* ── RIGHT-MID: layer toggles ─────────────────────────────── */
+.p2p-widget--right-mid {
+    top: 7.5rem;
+    right: 0.75rem;
+    padding: 0.55rem 0.7rem 0.6rem;
+    min-width: 165px;
+}
+.p2p-layer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.7rem;
+    padding: 0.18rem 0;
+    cursor: pointer;
+    user-select: none;
+}
+.p2p-layer-toggle input {
+    margin: 0;
+    cursor: pointer;
+}
+.p2p-layer-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+.p2p-layer-swatch--boundary {
+    background: rgba(110, 21, 39, 0.15);
+    border: 1.5px dashed var(--p2p-mar);
+}
+.p2p-layer-swatch--heat {
+    background: linear-gradient(90deg, #fee8c8, #fdbb84, #e34a33);
+}
+.p2p-layer-swatch--cluster {
+    background: var(--p2p-mar);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+    width: 12px;
+    height: 12px;
+}
+
+/* ── BOTTOM-RIGHT: layer controls + 10-color program legend ──── */
+.p2p-widget--bottom-right {
+    bottom: 0.75rem;
+    right: 0.75rem;
+    padding: 0.55rem 0.7rem 0.6rem;
+    max-width: 250px;
+    max-height: calc(100vh - 1.5rem);
+    overflow-y: auto;
+}
+.p2p-layer-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 0.2rem;
+}
+.p2p-legend-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0.6rem;
+    row-gap: 0.2rem;
+}
+.p2p-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    padding: 0.1rem 0.15rem;
+    border-radius: 4px;
+    transition: background 0.12s;
+}
+.p2p-legend-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+.p2p-legend-swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1.5px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+.p2p-legend-label {
+    font-size: 0.62rem;
+    color: var(--p2p-ink-m);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.p2p-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.62rem;
+    color: var(--p2p-ink-m);
+    padding: 0.1rem 0;
+}
+.p2p-legend-ring {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--p2p-mar);
+    border: 2px solid var(--p2p-green);
+    box-shadow: 0 0 0 1px #fff;
+    flex-shrink: 0;
+}
+.p2p-legend-selected {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--p2p-mar);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1.5px var(--p2p-gold);
+    flex-shrink: 0;
+}
+
+/* ── BOTTOM-LEFT: footer pill row ─────────────────────────── */
+.p2p-widget--bottom-left {
+    bottom: 0.75rem;
+    left: 0.75rem;
+    padding: 0.4rem 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    max-width: 420px;
+}
+.p2p-footer-widget .p2p-footer-tag {
+    height: 18px;
+    padding: 0 0.45rem;
+    border: 1px dashed #bbb;
+    border-radius: 3px;
+    font-size: 0.55rem;
+    color: #888;
+    background: rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+.p2p-footer-widget .p2p-footer-tag--lead {
+    border: 1px solid var(--p2p-mar);
+    color: var(--p2p-mar);
+    background: rgba(255, 255, 255, 0.85);
+    font-weight: 700;
+}
+.p2p-footer-widget .p2p-footer-meta {
+    font-size: 0.55rem;
+    color: var(--p2p-ink-m);
+    margin-left: 0.3rem;
+}
+.p2p-footer-widget .p2p-footer-meta a {
+    color: var(--p2p-mar);
+    text-decoration: none;
+}
+.p2p-footer-widget .p2p-footer-meta a:hover {
+    text-decoration: underline;
+}
+
+/* ── DRAWERS — slide-in overlays from each edge.
+   z-index 600 (below widgets at 700) so the bottom-right widget can
+   stay clickable when the right drawer is open. ─────────────── */
+.p2p-drawer {
+    position: absolute;
+    top:    11rem;     /* below the brand bar's bottom */
+    bottom: 11rem;     /* above the legend / footer widgets */
+    z-index: 600;
+    width: 330px;
+    max-width: 92vw;
+    display: flex;
+    transition: transform 0.32s cubic-bezier(.4, 0, .2, 1);
+}
+.p2p-drawer--left {
+    left: 0.75rem;
+    flex-direction: row;
+    transform: translateX(calc(-100% + 38px));
+}
+.p2p-drawer--left.p2p-drawer--open {
+    transform: translateX(0);
+}
+.p2p-drawer--right {
+    right: 0.75rem;
+    flex-direction: row-reverse;
+    transform: translateX(calc(100% - 38px));
+}
+.p2p-drawer--right.p2p-drawer--open {
+    transform: translateX(0);
+}
+
+.p2p-drawer-body {
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border-radius: 10px;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.14),
+        0 2px 6px rgba(0, 0, 0, 0.10);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.p2p-drawer-head {
+    padding: 0.55rem 0.85rem 0.45rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.8);
+}
+.p2p-drawer-content {
+    padding: 0.65rem 0.85rem 0.9rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.p2p-drawer-tab {
+    background: var(--p2p-mar);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.45rem 0.4rem;
+    cursor: pointer;
+    font-family: var(--p2p-fs-sans);
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+    align-self: center;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 88px;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    margin: 0 0.3rem;
+}
+.p2p-drawer-tab:hover {
+    background: var(--p2p-mar-mid);
+}
+.p2p-drawer-tab-chev {
+    writing-mode: horizontal-tb;
+    transform: rotate(180deg);
+    font-size: 0.75rem;
+}
+.p2p-drawer--left .p2p-drawer-tab {
+    order: 2;
+}
+.p2p-drawer--right .p2p-drawer-tab {
+    order: 2;
+}
+.p2p-drawer--open .p2p-drawer-tab-chev {
+    transform: rotate(0deg);
+}
+
+/* ── Left drawer content tweaks ──────────────────────── */
+.p2p-school-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.65rem;
+    color: var(--p2p-ink-m);
+    margin: 0.2rem 0 0.6rem;
+    font-weight: 600;
+}
+.p2p-primary-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.p2p-pathway-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1.5px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Responsive — drawers become bottom sheets on narrow viewports ── */
+@media (max-width: 900px) {
+    .p2p-widget--top-left {
+        max-width: calc(100vw - 1.5rem);
+        min-width: 0;
+    }
+    .p2p-widget--top-right {
+        top: auto;
+        bottom: 5rem;
+        right: 0.5rem;
+    }
+    .p2p-widget--right-mid {
+        top: auto;
+        bottom: 10.5rem;
+        right: 0.5rem;
+    }
+    .p2p-widget--bottom-right {
+        max-width: 200px;
+    }
+    .p2p-drawer {
+        width: calc(100vw - 1.5rem);
+        max-height: 60vh;
+        top: auto;
+        bottom: 4rem;
+        transform: translateY(calc(100% - 38px));
+    }
+    .p2p-drawer--left,
+    .p2p-drawer--right {
+        left: 0.75rem;
+        right: 0.75rem;
+        flex-direction: column;
+        transform: translateY(calc(100% - 38px));
+    }
+    .p2p-drawer--open {
+        transform: translateY(0) !important;
+    }
+}
+
+/* Narrow viewport for top-right stats (also prevents overlap with brand). */
+@media (max-width: 1100px) {
+    .p2p-widget--top-left {
+        max-width: 360px;
+    }
+    .p2p-widget--top-right {
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+}

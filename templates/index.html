@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Interactive GIS map of SBCUSD high schools and the County of San Bernardino entry-level positions tied to each CTE pathway.">
+    <meta name="description" content="GIS dashboard of SBCUSD high schools and the County of San Bernardino entry-level positions tied to each CTE pathway.">
     <title>Pathways to Positions — SBCUSD × County of San Bernardino</title>
 
     <!-- Fonts -->
@@ -11,114 +11,149 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
 
-    <!-- Leaflet CSS -->
+    <!-- Leaflet + plugins -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
-    <!-- Dashboard styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
-<body class="p2p-body">
+<body class="p2p-body p2p-gis">
 
     <!-- USER AUTH PLACEHOLDER — identity injected here by SBCUSD portal SSO -->
 
-    <header class="p2p-header">
-        <div class="p2p-header-left">
-            <span class="p2p-tag">SBCUSD × County of San Bernardino</span>
+    <!-- ========================
+         MAP (fills the viewport)
+    ========================= -->
+    <div id="map" role="application" aria-label="Interactive map of SBCUSD high schools"></div>
+
+    <!-- ========================
+         TOP-LEFT brand + chip filter widget
+    ========================= -->
+    <header class="p2p-widget p2p-widget--top-left" id="brand-bar">
+        <div class="p2p-brand">
+            <span class="p2p-brand-tag">SBCUSD × County of San Bernardino</span>
             <h1>Pathways to <em>Positions</em></h1>
-            <p class="p2p-hsub">SBCUSD CTE pathways → County entry-level classifications with pay, MQs, and career ladders.</p>
+            <p class="p2p-brand-sub">Interactive GIS dashboard · SBCUSD high schools → County entry-level classifications</p>
         </div>
-        <div class="p2p-stats" id="header-stats">
-            <!-- filled by JS -->
-        </div>
-        <div class="p2p-header-nav">
+        <nav class="p2p-chip-bar" id="chip-bar" aria-label="Filter map by CTE program">
+            <span class="p2p-chip-label">Filter:</span>
+            <!-- chips injected by JS -->
+        </nav>
+        <div class="p2p-brand-actions">
             <a href="{{ url_for('programs.render_programs_page') }}" class="p2p-nav-link">Browse all programs →</a>
         </div>
     </header>
 
     <!-- ========================
-         CTE Program filter chips
+         TOP-RIGHT stats KPI widget
     ========================= -->
-    <nav class="p2p-chip-bar" id="chip-bar" aria-label="Filter map by CTE program">
-        <span class="p2p-chip-label">CTE Programs:</span>
-        <!-- chips injected by JS; "Reset" chip appended last -->
-    </nav>
+    <aside class="p2p-widget p2p-widget--top-right p2p-stats-widget" id="header-stats" aria-label="At-a-glance statistics">
+        <!-- KPI tiles injected by JS -->
+    </aside>
 
     <!-- ========================
-         MAIN 3-COLUMN GRID
+         BOTTOM-RIGHT widget: layer controls + legend (combined so the
+         right drawer can't cover them when it's open)
     ========================= -->
-    <main class="p2p-main">
+    <aside class="p2p-widget p2p-widget--bottom-right p2p-legend-widget" id="legend" aria-label="Map layer controls and legend">
+        <div class="p2p-widget-title">Layers</div>
+        <div class="p2p-layer-toggles">
+            <label class="p2p-layer-toggle">
+                <input type="checkbox" id="toggle-boundary" checked>
+                <span class="p2p-layer-swatch p2p-layer-swatch--boundary"></span>
+                SBCUSD boundary
+            </label>
+            <label class="p2p-layer-toggle">
+                <input type="checkbox" id="toggle-heatmap">
+                <span class="p2p-layer-swatch p2p-layer-swatch--heat"></span>
+                Hiring density
+            </label>
+            <label class="p2p-layer-toggle">
+                <input type="checkbox" id="toggle-cluster" checked>
+                <span class="p2p-layer-swatch p2p-layer-swatch--cluster"></span>
+                Cluster markers
+            </label>
+        </div>
+        <div class="p2p-widget-sep"></div>
+        <div class="p2p-widget-title">Primary CTE program</div>
+        <div class="p2p-legend-grid" id="legend-grid">
+            <!-- color swatches injected by JS -->
+        </div>
+        <div class="p2p-widget-sep"></div>
+        <div class="p2p-legend-row"><span class="p2p-legend-ring"></span> Has positions hiring now</div>
+        <div class="p2p-legend-row"><span class="p2p-legend-selected"></span> Selected school</div>
+    </aside>
 
-        <!-- ===== Left: school + pathway list ===== -->
-        <aside class="p2p-panel p2p-left" aria-label="Selected school and its CTE pathways">
-            <div class="p2p-panel-head">
-                <h2>School &amp; Pathways</h2>
+    <!-- ========================
+         LEFT drawer — school + pathways
+    ========================= -->
+    <aside class="p2p-drawer p2p-drawer--left" id="left-drawer" aria-label="Selected school and CTE pathways">
+        <button class="p2p-drawer-tab" id="left-drawer-tab" type="button" aria-label="Toggle school panel" aria-expanded="false">
+            <span class="p2p-drawer-tab-label">School &amp; Pathways</span>
+            <span class="p2p-drawer-tab-chev" aria-hidden="true">▸</span>
+        </button>
+        <div class="p2p-drawer-body">
+            <div class="p2p-drawer-head">
+                <div class="p2p-widget-title">School &amp; Pathways</div>
             </div>
-            <div class="p2p-panel-body">
+            <div class="p2p-drawer-content">
                 <div id="left-empty" class="p2p-empty">
-                    Click any school marker on the map (or use the chips above) to see its CTE pathways here.
+                    Click a school marker on the map (or pick a CTE program chip) to load its pathways here.
                 </div>
                 <div id="left-school" hidden>
                     <div class="p2p-school-name" id="left-school-name"></div>
                     <div class="p2p-school-district" id="left-school-district"></div>
+                    <div class="p2p-school-primary" id="left-school-primary"></div>
                     <div class="p2p-pathways" id="left-pathways"></div>
                 </div>
             </div>
-        </aside>
+        </div>
+    </aside>
 
-        <!-- ===== Center: map ===== -->
-        <section class="p2p-map-wrap" aria-label="School map">
-            <div id="map" role="application" aria-label="Interactive map of SBCUSD high schools"></div>
-            <div class="p2p-legend" aria-label="Map legend">
-                <div class="p2p-legend-title">Legend</div>
-                <ul>
-                    <li><span class="p2p-dot p2p-dot--default"></span>SBCUSD high school</li>
-                    <li><span class="p2p-dot p2p-dot--match"></span>Matches program filter</li>
-                    <li><span class="p2p-dot p2p-dot--selected"></span>Selected school</li>
-                    <li><span class="p2p-dot p2p-dot--hiring"></span>Has a position hiring now</li>
-                </ul>
+    <!-- ========================
+         RIGHT drawer — county positions
+    ========================= -->
+    <aside class="p2p-drawer p2p-drawer--right" id="right-drawer" aria-label="County entry-level positions for the selected pathway" aria-live="polite">
+        <button class="p2p-drawer-tab" id="right-drawer-tab" type="button" aria-label="Toggle positions panel" aria-expanded="false">
+            <span class="p2p-drawer-tab-chev" aria-hidden="true">◂</span>
+            <span class="p2p-drawer-tab-label">County Positions</span>
+        </button>
+        <div class="p2p-drawer-body">
+            <div class="p2p-drawer-head">
+                <div class="p2p-widget-title">County Position Alignment</div>
             </div>
-        </section>
-
-        <!-- ===== Right: county positions ===== -->
-        <aside class="p2p-panel p2p-right" aria-label="County entry-level positions for the selected pathway" aria-live="polite">
-            <div class="p2p-panel-head">
-                <h2>County Position Alignment</h2>
-            </div>
-            <div class="p2p-panel-body">
+            <div class="p2p-drawer-content">
                 <div class="p2p-stat-row">
-                    <div class="p2p-stat-card">
-                        <h4>School</h4>
-                        <p id="stat-school">—</p>
-                    </div>
-                    <div class="p2p-stat-card">
-                        <h4>CTE Program</h4>
-                        <p id="stat-program">—</p>
-                    </div>
+                    <div class="p2p-stat-card"><h4>School</h4><p id="stat-school">—</p></div>
+                    <div class="p2p-stat-card"><h4>CTE Program</h4><p id="stat-program">—</p></div>
                 </div>
                 <div class="p2p-stat-row">
-                    <div class="p2p-stat-card">
-                        <h4>Entry positions</h4>
-                        <p id="stat-count">0</p>
-                    </div>
-                    <div class="p2p-stat-card">
-                        <h4>Pay range</h4>
-                        <p id="stat-pay">—</p>
-                    </div>
+                    <div class="p2p-stat-card"><h4>Entry positions</h4><p id="stat-count">0</p></div>
+                    <div class="p2p-stat-card"><h4>Pay range</h4><p id="stat-pay">—</p></div>
                 </div>
                 <div id="right-empty" class="p2p-empty">
-                    Pick a pathway on the left to see the County entry-level positions tied to its CTE program.
+                    Pick a pathway on the left to see County entry-level positions tied to its CTE program.
                 </div>
                 <div id="right-positions"></div>
             </div>
-        </aside>
+        </div>
+    </aside>
 
-    </main>
+    <!-- ========================
+         BOTTOM-LEFT footer pill
+    ========================= -->
+    <div class="p2p-widget p2p-widget--bottom-left p2p-footer-widget">
+        <span class="p2p-footer-tag p2p-footer-tag--lead">AniVation-Tech Academy</span>
+        <span class="p2p-footer-tag">SBCUSD</span>
+        <span class="p2p-footer-tag">County of San Bernardino</span>
+        <span class="p2p-footer-meta">
+            <a href="https://www.governmentjobs.com/careers/sanbernardino" target="_blank" rel="noopener">governmentjobs.com/careers/sanbernardino</a>
+            <span id="footer-refresh"></span>
+        </span>
+    </div>
 
-    <!-- Hidden controls retained for the "Other ways to explore" / accessibility flows.
-         They're driven by the same app.js but kept off-screen by default — counselors
-         can wire them up later if they need a dropdown-only mode. -->
+    <!-- Hidden controls retained for the dropdown-only / accessibility flow. -->
     <div hidden>
         <select id="school-select"></select>
         <select id="pathway-select"></select>
@@ -126,23 +161,11 @@
         <div id="pathway-recommendations"><div id="pathway-cards"></div></div>
     </div>
 
-    <footer class="p2p-footer">
-        <div class="p2p-footer-tags">
-            <span class="p2p-footer-tag p2p-footer-tag--lead">AniVation-Tech Academy</span>
-            <span class="p2p-footer-tag">SBCUSD</span>
-            <span class="p2p-footer-tag">County of San Bernardino</span>
-        </div>
-        <div class="p2p-footer-meta">
-            <span>Position catalog: <a href="https://www.governmentjobs.com/careers/sanbernardino" target="_blank" rel="noopener">governmentjobs.com/careers/sanbernardino</a></span>
-            <span id="footer-refresh"></span>
-        </div>
-    </footer>
-
-    <!-- Leaflet JS — loads before app.js so the L object is available -->
+    <!-- Leaflet + plugins -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
-    <!-- Dashboard logic -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
 </body>
