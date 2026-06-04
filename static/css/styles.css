@@ -2660,47 +2660,14 @@ select:disabled {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
-/* ── Responsive — drawers become bottom sheets on narrow viewports ── */
-@media (max-width: 900px) {
-    .p2p-widget--top-center {
-        max-width: calc(100vw - 1.5rem);
-        min-width: 0;
-        left: 0.75rem;
-        transform: none;
-    }
-    .p2p-widget--top-right {
-        top: auto;
-        bottom: 5rem;
-        right: 0.5rem;
-    }
-    .p2p-widget--right-mid {
-        top: auto;
-        bottom: 10.5rem;
-        right: 0.5rem;
-    }
-    .p2p-widget--bottom-right {
-        max-width: 200px;
-    }
-    .p2p-drawer {
-        width: calc(100vw - 1.5rem);
-        max-height: 60vh;
-        top: auto;
-        bottom: 4rem;
-        transform: translateY(calc(100% - 38px));
-    }
-    .p2p-drawer--left,
-    .p2p-drawer--right {
-        left: 0.75rem;
-        right: 0.75rem;
-        flex-direction: column;
-        transform: translateY(calc(100% - 38px));
-    }
-    .p2p-drawer--open {
-        transform: translateY(0) !important;
-    }
+/* ── Mobile-only DOM. Hidden by default; shown only at phone widths. ─── */
+.p2p-mobile-bar,
+.p2p-mobile-menu,
+.p2p-backdrop {
+    display: none;
 }
 
-/* Narrow viewport for top-right stats (also prevents overlap with brand). */
+/* ── Narrow viewport tweaks (tablet portrait, 700–1100px) ──────── */
 @media (max-width: 1100px) {
     .p2p-widget--top-center {
         max-width: calc(100vw - 22rem);
@@ -2709,4 +2676,285 @@ select:disabled {
         top: 0.5rem;
         right: 0.5rem;
     }
+}
+
+/* ── Tablet landscape / portrait (700–900px) ──────────────────── */
+@media (max-width: 900px) {
+    .p2p-widget--top-center {
+        max-width: calc(100vw - 18rem);
+        min-width: 0;
+    }
+    .p2p-widget--top-left {
+        max-width: 180px;
+    }
+}
+
+/* ============================================================================
+   PHONE LAYOUT (≤ 700px) — full mobile redesign.
+   The map fills the viewport. A slim top bar holds the title + hamburger.
+   The hamburger opens a slide-down sheet that contains chips + layer toggles +
+   legend. Drawers slide up from the bottom as bottom sheets with a dim
+   backdrop. Desktop floating widgets are hidden.
+   ============================================================================ */
+@media (max-width: 700px) {
+
+    /* Hide all desktop widgets. */
+    .p2p-widget--top-center,
+    .p2p-widget--top-left,
+    .p2p-widget--top-right,
+    .p2p-widget--bottom-left {
+        display: none;
+    }
+
+    /* Show the mobile top bar. */
+    .p2p-mobile-bar {
+        display: flex;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 800;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 0.85rem;
+        background: linear-gradient(135deg, rgba(110, 21, 39, 0.97) 0%, rgba(74, 14, 26, 0.95) 100%);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+        border-bottom: 1px solid rgba(212, 160, 18, 0.35);
+    }
+    .p2p-mobile-title {
+        flex: 1;
+        font-family: var(--p2p-fs-serif);
+        font-size: 1.05rem;
+        font-weight: 400;
+        margin: 0;
+        line-height: 1.15;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .p2p-mobile-title em {
+        color: var(--p2p-gold-b);
+        font-style: italic;
+    }
+    .p2p-mobile-hiring {
+        background: var(--p2p-green);
+        color: #fff;
+        font-size: 0.62rem;
+        font-weight: 700;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+        flex-shrink: 0;
+    }
+
+    /* Hamburger button */
+    .p2p-hamburger {
+        flex-shrink: 0;
+        width: 38px;
+        height: 38px;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    }
+    .p2p-hamburger span {
+        display: block;
+        width: 20px;
+        height: 2px;
+        background: var(--p2p-gold-b);
+        border-radius: 1px;
+        transition: transform 0.2s, opacity 0.2s;
+    }
+    .p2p-hamburger--open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+    .p2p-hamburger--open span:nth-child(2) { opacity: 0; }
+    .p2p-hamburger--open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+    /* Mobile menu — slides down from the top bar */
+    .p2p-mobile-menu {
+        display: block;
+        position: absolute;
+        top: 56px;
+        left: 0.5rem;
+        right: 0.5rem;
+        z-index: 750;
+        background: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(12px) saturate(160%);
+        border-radius: 12px;
+        padding: 0.85rem 0.9rem 1rem;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+        max-height: calc(100vh - 70px);
+        overflow-y: auto;
+        transform: translateY(-110%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.28s cubic-bezier(.4,0,.2,1), opacity 0.2s;
+    }
+    .p2p-mobile-menu--open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .p2p-mobile-section {
+        margin-bottom: 0.85rem;
+    }
+    .p2p-mobile-section:last-of-type {
+        margin-bottom: 0.5rem;
+    }
+    .p2p-mobile-section-title {
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--p2p-ink-m);
+        margin-bottom: 0.4rem;
+    }
+    .p2p-mobile-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+    }
+    .p2p-mobile-chips .p2p-chip {
+        flex: 0 0 auto;
+        background: var(--p2p-mar-l);
+        border: 1px solid rgba(110, 21, 39, 0.2);
+        font-size: 0.7rem;
+        padding: 0.3rem 0.55rem;
+        color: var(--p2p-ink);
+    }
+    .p2p-mobile-chips .p2p-chip--active {
+        background: var(--p2p-mar);
+        color: #fff;
+        border-color: var(--p2p-mar);
+    }
+    .p2p-mobile-chips .p2p-chip--reset {
+        background: transparent;
+        border-style: dashed;
+        color: var(--p2p-ink-m);
+    }
+    .p2p-layer-toggle--mobile {
+        padding: 0.4rem 0;
+        font-size: 0.78rem;
+        min-height: 32px;
+    }
+    .p2p-legend-grid--mobile {
+        grid-template-columns: 1fr 1fr;
+        column-gap: 0.75rem;
+        row-gap: 0.35rem;
+    }
+    .p2p-legend-grid--mobile .p2p-legend-label {
+        font-size: 0.68rem;
+    }
+    .p2p-mobile-action {
+        display: block;
+        background: var(--p2p-mar);
+        color: #fff;
+        text-align: center;
+        padding: 0.55rem 0.7rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+    .p2p-mobile-action:hover {
+        background: var(--p2p-mar-mid);
+        color: #fff;
+    }
+
+    /* Backdrop dims map under any open sheet/menu */
+    .p2p-backdrop {
+        display: block;
+        position: absolute;
+        inset: 0;
+        z-index: 590;
+        background: rgba(15, 20, 26, 0.32);
+        backdrop-filter: blur(1px);
+        animation: p2p-fadein 0.18s ease;
+    }
+    @keyframes p2p-fadein { from { opacity: 0; } to { opacity: 1; } }
+
+    /* DRAWERS become bottom sheets. Pull-tab moves to the top of the sheet. */
+    .p2p-drawer {
+        position: absolute;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: auto;
+        max-width: none;
+        flex-direction: column-reverse;
+        transform: translateY(calc(100% - 44px));
+        transition: transform 0.32s cubic-bezier(.4,0,.2,1);
+        z-index: 700;
+    }
+    .p2p-drawer--left,
+    .p2p-drawer--right {
+        left: 0;
+        right: 0;
+        transform: translateY(calc(100% - 44px));
+    }
+    .p2p-drawer--open,
+    .p2p-drawer--left.p2p-drawer--open,
+    .p2p-drawer--right.p2p-drawer--open {
+        transform: translateY(0);
+    }
+    .p2p-drawer-body {
+        border-radius: 16px 16px 0 0;
+        max-height: calc(80vh - 56px);
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+    }
+    .p2p-drawer-tab {
+        writing-mode: horizontal-tb;
+        transform: none;
+        margin: 0 auto 0.25rem;
+        min-height: 0;
+        height: 44px;
+        padding: 0.45rem 1.2rem;
+        font-size: 0.7rem;
+        border-radius: 999px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.45rem;
+    }
+    .p2p-drawer-tab-chev {
+        writing-mode: horizontal-tb;
+        transform: rotate(-90deg);
+    }
+    .p2p-drawer--open .p2p-drawer-tab-chev {
+        transform: rotate(90deg);
+    }
+
+    /* Right drawer would otherwise stack above the left drawer when both open.
+       Offset them so both pull-tabs are visible. */
+    .p2p-drawer--right .p2p-drawer-tab {
+        background: var(--p2p-mar-d);
+    }
+
+    /* Make sure leaflet zoom control doesn't collide with the bottom sheets */
+    .leaflet-bottom.leaflet-left {
+        bottom: 56px !important;
+    }
+
+    /* Position cards a touch smaller for phone */
+    .p2p-pos {
+        padding: 0.5rem 0.6rem;
+    }
+    .p2p-pos-head h3 {
+        font-size: 0.82rem;
+    }
+}
+
+/* Even narrower (small phones, ≤ 380px) */
+@media (max-width: 380px) {
+    .p2p-mobile-title { font-size: 0.95rem; }
+    .p2p-mobile-menu { left: 0.35rem; right: 0.35rem; }
+}
 }

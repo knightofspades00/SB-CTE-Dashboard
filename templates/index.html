@@ -28,6 +28,53 @@
     <div id="map" role="application" aria-label="Interactive map of SBCUSD high schools"></div>
 
     <!-- ========================
+         MOBILE TOP BAR (phones only, ≤ 700px viewport)
+    ========================= -->
+    <header class="p2p-mobile-bar" id="mobile-bar" role="banner">
+        <h1 class="p2p-mobile-title">Pathways&nbsp;to&nbsp;<em>Positions</em></h1>
+        <span class="p2p-mobile-hiring" id="mobile-hiring" hidden>● <span id="mobile-hiring-n">0</span></span>
+        <button class="p2p-hamburger" id="hamburger-btn" type="button" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+    </header>
+
+    <!-- Backdrop that dims the map when the mobile menu or a sheet is open -->
+    <div class="p2p-backdrop" id="backdrop" hidden></div>
+
+    <!-- ========================
+         MOBILE MENU SHEET (phones only) — slides down from top
+    ========================= -->
+    <aside class="p2p-mobile-menu" id="mobile-menu" aria-label="Mobile menu" aria-hidden="true">
+        <div class="p2p-mobile-section">
+            <div class="p2p-mobile-section-title">Filter by CTE program</div>
+            <div class="p2p-mobile-chips" id="mobile-chip-bar"></div>
+        </div>
+        <div class="p2p-mobile-section">
+            <div class="p2p-mobile-section-title">Layers</div>
+            <label class="p2p-layer-toggle p2p-layer-toggle--mobile">
+                <input type="checkbox" id="mobile-toggle-boundary" checked>
+                <span class="p2p-layer-swatch p2p-layer-swatch--boundary"></span>
+                SBCUSD boundary
+            </label>
+            <label class="p2p-layer-toggle p2p-layer-toggle--mobile">
+                <input type="checkbox" id="mobile-toggle-heatmap">
+                <span class="p2p-layer-swatch p2p-layer-swatch--heat"></span>
+                Hiring density
+            </label>
+            <label class="p2p-layer-toggle p2p-layer-toggle--mobile">
+                <input type="checkbox" id="mobile-toggle-cluster" checked>
+                <span class="p2p-layer-swatch p2p-layer-swatch--cluster"></span>
+                Cluster markers
+            </label>
+        </div>
+        <div class="p2p-mobile-section">
+            <div class="p2p-mobile-section-title">Primary CTE program</div>
+            <div class="p2p-legend-grid p2p-legend-grid--mobile" id="mobile-legend-grid"></div>
+        </div>
+        <a href="{{ url_for('programs.render_programs_page') }}" class="p2p-mobile-action">Browse all programs →</a>
+    </aside>
+
+    <!-- ========================
          TOP-CENTER brand + chip filter widget.
          Single-row brand text on top, single-row scrollable chips below.
          No wrapping = no surprise vertical growth on narrow viewports.

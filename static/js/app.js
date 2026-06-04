@@ -93,6 +93,22 @@ const el = {
   statProgram:     document.getElementById('stat-program'),
   statCount:       document.getElementById('stat-count'),
   statPay:         document.getElementById('stat-pay'),
+
+  // Mobile-only DOM. These are present in the document at all viewports but
+  // only displayed by CSS under 700px. Render the same content into both
+  // desktop and mobile mount points so the JS doesn't have to care which
+  // layout the user is on.
+  mobileBar:       document.getElementById('mobile-bar'),
+  mobileHiring:    document.getElementById('mobile-hiring'),
+  mobileHiringN:   document.getElementById('mobile-hiring-n'),
+  hamburger:       document.getElementById('hamburger-btn'),
+  mobileMenu:      document.getElementById('mobile-menu'),
+  mobileChipBar:   document.getElementById('mobile-chip-bar'),
+  mobileLegendGrid:document.getElementById('mobile-legend-grid'),
+  mobileToggleBoundary: document.getElementById('mobile-toggle-boundary'),
+  mobileToggleHeatmap:  document.getElementById('mobile-toggle-heatmap'),
+  mobileToggleCluster:  document.getElementById('mobile-toggle-cluster'),
+  backdrop:        document.getElementById('backdrop'),
 };
 
 // ── Utilities ────────────────────────────────────────
@@ -140,11 +156,13 @@ function openDrawer(which) {
   (which === 'left' ? el.leftDrawer : el.rightDrawer).classList.add('p2p-drawer--open');
   const tab = which === 'left' ? el.leftDrawerTab : el.rightDrawerTab;
   tab.setAttribute('aria-expanded', 'true');
+  if (typeof syncBackdrop === 'function') syncBackdrop();
 }
 function closeDrawer(which) {
   (which === 'left' ? el.leftDrawer : el.rightDrawer).classList.remove('p2p-drawer--open');
   const tab = which === 'left' ? el.leftDrawerTab : el.rightDrawerTab;
   tab.setAttribute('aria-expanded', 'false');
+  if (typeof syncBackdrop === 'function') syncBackdrop();
 }
 function toggleDrawer(which) {
   const d = which === 'left' ? el.leftDrawer : el.rightDrawer;
@@ -445,10 +463,19 @@ function renderHeaderStats() {
       <div class="p2p-stat-l">Hiring<br>now</div>
     </div>
   `;
+  // Mirror the "hiring now" count into the mobile top bar as a tiny pill.
+  if (el.mobileHiring) {
+    if (hiringCount > 0) {
+      el.mobileHiring.hidden = false;
+      el.mobileHiringN.textContent = hiringCount;
+    } else {
+      el.mobileHiring.hidden = true;
+    }
+  }
 }
 
 function renderLegend() {
-  el.legendGrid.innerHTML = state.programs
+  const html = state.programs
     .slice()
     .sort((a, b) => a.display_order - b.display_order)
     .map(p => `
@@ -458,12 +485,17 @@ function renderLegend() {
       </div>
     `)
     .join('');
-  // Clicking a legend swatch filters the map to that program (matches chip click).
-  el.legendGrid.querySelectorAll('.p2p-legend-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const pid  = parseInt(item.dataset.pid);
-      const prog = state.programs.find(p => p.id === pid);
-      if (prog) onProgramChipClick(prog);
+  [el.legendGrid, el.mobileLegendGrid].filter(Boolean).forEach(target => {
+    target.innerHTML = html;
+    target.querySelectorAll('.p2p-legend-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const pid  = parseInt(item.dataset.pid);
+        const prog = state.programs.find(p => p.id === pid);
+        if (prog) {
+          closeMobileMenu();
+          onProgramChipClick(prog);
+        }
+      });
     });
   });
 }
@@ -481,37 +513,50 @@ function renderFooterRefresh() {
 // =====================================================
 
 function renderProgramChips() {
-  const labelSpan = el.chipBar.querySelector('.p2p-chip-label');
-  el.chipBar.innerHTML = '';
-  if (labelSpan) el.chipBar.appendChild(labelSpan);
+  // Render chips into BOTH the desktop chip bar and the mobile menu's chip
+  // section. Each chip gets its own click handler so they all funnel into
+  // onProgramChipClick.
+  const targets = [el.chipBar, el.mobileChipBar].filter(Boolean);
 
-  state.programs
-    .slice()
-    .sort((a, b) => a.display_order - b.display_order)
-    .forEach(prog => {
-      const chip = document.createElement('button');
-      chip.className   = 'p2p-chip';
-      chip.dataset.pid = prog.id;
-      chip.type        = 'button';
-      const short = PROGRAM_SHORT[prog.name] || prog.name;
-      const hiring = (state.refreshStatus?.per_program || []).find(r => r.id === prog.id);
-      chip.innerHTML = `
-        <span class="p2p-chip-dot" style="background:${programColor(prog.id)}"></span>
-        <span>${escapeHtml(short)}</span>
-        ${hiring && hiring.posting_count
-          ? `<span class="p2p-chip-hiring" title="${hiring.posting_count} hiring now">●</span>`
-          : ''}
-      `;
-      chip.addEventListener('click', () => onProgramChipClick(prog));
-      el.chipBar.appendChild(chip);
+  targets.forEach(target => {
+    const labelSpan = target.querySelector('.p2p-chip-label');
+    target.innerHTML = '';
+    if (labelSpan) target.appendChild(labelSpan);
+
+    state.programs
+      .slice()
+      .sort((a, b) => a.display_order - b.display_order)
+      .forEach(prog => {
+        const chip = document.createElement('button');
+        chip.className   = 'p2p-chip';
+        chip.dataset.pid = prog.id;
+        chip.type        = 'button';
+        const short = PROGRAM_SHORT[prog.name] || prog.name;
+        const hiring = (state.refreshStatus?.per_program || []).find(r => r.id === prog.id);
+        chip.innerHTML = `
+          <span class="p2p-chip-dot" style="background:${programColor(prog.id)}"></span>
+          <span>${escapeHtml(short)}</span>
+          ${hiring && hiring.posting_count
+            ? `<span class="p2p-chip-hiring" title="${hiring.posting_count} hiring now">●</span>`
+            : ''}
+        `;
+        chip.addEventListener('click', () => {
+          closeMobileMenu();
+          onProgramChipClick(prog);
+        });
+        target.appendChild(chip);
+      });
+
+    const reset = document.createElement('button');
+    reset.className = 'p2p-chip p2p-chip--reset';
+    reset.type      = 'button';
+    reset.textContent = 'Reset';
+    reset.addEventListener('click', () => {
+      closeMobileMenu();
+      resetAll();
     });
-
-  const reset = document.createElement('button');
-  reset.className = 'p2p-chip p2p-chip--reset';
-  reset.type      = 'button';
-  reset.textContent = 'Reset';
-  reset.addEventListener('click', resetAll);
-  el.chipBar.appendChild(reset);
+    target.appendChild(reset);
+  });
 }
 
 function onProgramChipClick(prog) {
@@ -758,7 +803,64 @@ function bindEvents() {
 
   el.toggleBoundary.addEventListener('change', drawBoundary);
   el.toggleHeatmap.addEventListener('change',  renderHeatmap);
-  el.toggleCluster.addEventListener('change', onClusterToggle);
+  el.toggleCluster.addEventListener('change',  onClusterToggle);
+
+  // Mirror the layer-toggle state between desktop and mobile copies so flipping
+  // either one drives the map. Two checkboxes for the same logical setting.
+  const pair = (desktop, mobile, handler) => {
+    if (!desktop || !mobile) return;
+    mobile.checked = desktop.checked;
+    mobile.addEventListener('change', () => {
+      desktop.checked = mobile.checked;
+      handler();
+    });
+    desktop.addEventListener('change', () => { mobile.checked = desktop.checked; });
+  };
+  pair(el.toggleBoundary, el.mobileToggleBoundary, drawBoundary);
+  pair(el.toggleHeatmap,  el.mobileToggleHeatmap,  renderHeatmap);
+  pair(el.toggleCluster,  el.mobileToggleCluster,  onClusterToggle);
+
+  // Mobile menu hamburger
+  if (el.hamburger) {
+    el.hamburger.addEventListener('click', toggleMobileMenu);
+  }
+  if (el.backdrop) {
+    el.backdrop.addEventListener('click', () => {
+      closeMobileMenu();
+      closeDrawer('left');
+      closeDrawer('right');
+    });
+  }
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 700px)').matches;
+}
+
+function toggleMobileMenu() {
+  const open = el.mobileMenu.classList.toggle('p2p-mobile-menu--open');
+  el.hamburger.classList.toggle('p2p-hamburger--open', open);
+  el.hamburger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  el.mobileMenu.setAttribute('aria-hidden', open ? 'false' : 'true');
+  syncBackdrop();
+}
+function closeMobileMenu() {
+  if (!el.mobileMenu) return;
+  el.mobileMenu.classList.remove('p2p-mobile-menu--open');
+  el.hamburger.classList.remove('p2p-hamburger--open');
+  el.hamburger.setAttribute('aria-expanded', 'false');
+  el.mobileMenu.setAttribute('aria-hidden', 'true');
+  syncBackdrop();
+}
+function syncBackdrop() {
+  if (!el.backdrop) return;
+  const anyOpen =
+    (el.mobileMenu && el.mobileMenu.classList.contains('p2p-mobile-menu--open')) ||
+    (isMobileViewport() && (
+      el.leftDrawer.classList.contains('p2p-drawer--open') ||
+      el.rightDrawer.classList.contains('p2p-drawer--open')
+    ));
+  el.backdrop.hidden = !anyOpen;
 }
 
 function onClusterToggle() {
