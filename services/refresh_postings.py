@@ -64,11 +64,31 @@ logger = logging.getLogger(__name__)
 # Source 1: Live scrape via Playwright
 # ---------------------------------------------------------------------------
 
-def fetch_live_postings(timeout_ms=20000):
+def fetch_live_postings(timeout_ms=30000, max_pages=30):
     """Render the NeoGov portal in headless Chromium and extract every open posting.
 
-    Returns a list of {"title", "url", "closes"} dicts. Returns None if Playwright
-    is not installed; raises on any other error so the caller can log it.
+    NeoGov renders the listings via Knockout.js on the client. We let the page
+    settle, harvest the visible job rows, then either advance via the Next
+    button or bump the URL's ?page=N parameter until we run out of pages.
+
+    Returns a list of {"title", "url", "closes"} dicts. Returns None if
+    Playwright is not installed; logs and returns [] on a runtime failure so
+    the caller can fall through to the JSON override.
+
+    Catalogue of relevant DOM (as of 2026-06):
+      <li class="list-item" data-job-id="5314703">
+        <h3 class="job-item-link-container">
+          <a class="item-details-link"
+             href="/careers/sanbernardino/jobs/5314703/animal-keeper-i">
+            Animal Keeper I
+          </a>
+        </h3>
+        <ul class="list-meta">
+          <li>Location ...</li><li>Full-time ...</li>
+          ...
+          <li>Continuous</li>  <!-- or a specific closing date -->
+        </ul>
+      </li>
     """
     try:
         from playwright.sync_api import sync_playwright
@@ -80,6 +100,7 @@ def fetch_live_postings(timeout_ms=20000):
         return None
 
     postings = []
+    seen_ids = set()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         try:
@@ -90,58 +111,87 @@ def fetch_live_postings(timeout_ms=20000):
             logger.info(f"Loading {PORTAL_URL} ...")
             page.goto(PORTAL_URL, wait_until="networkidle", timeout=timeout_ms)
 
-            # The job list renders as a <table> of rows with class "job-table-title".
-            # NeoGov sometimes paginates; click "next" until no more pages exist.
-            seen_first_id = None
-            while True:
-                page.wait_for_timeout(800)  # let knockout bindings settle
-                rows = page.locator("a.job-table-title").all()
+            page_num = 1
+            while page_num <= max_pages:
+                page.wait_for_timeout(2000)  # let knockout bindings settle
+                # Wait until at least one job row is in the DOM before reading.
+                try:
+                    page.wait_for_selector("li[data-job-id]", timeout=8000)
+                except Exception:
+                    logger.warning(f"  page {page_num}: no job rows rendered")
+                    break
+
+                rows = page.evaluate("""() => {
+                    return Array.from(document.querySelectorAll('li[data-job-id]')).map(row => {
+                        const a = row.querySelector('h3 a.item-details-link, h3 a');
+                        const metaLis = Array.from(row.querySelectorAll('ul.list-meta li'))
+                            .map(li => (li.innerText || '').trim());
+                        return {
+                            jobId: row.getAttribute('data-job-id'),
+                            title: a ? (a.innerText || '').trim() : '',
+                            href:  a ? a.getAttribute('href') : '',
+                            meta:  metaLis,
+                        };
+                    });
+                }""")
                 if not rows:
                     break
 
-                # Detect a no-op next-click (same first row twice) to avoid infinite loops.
-                first_href = rows[0].get_attribute("href") or ""
-                if seen_first_id == first_href:
-                    break
-                seen_first_id = first_href
-
-                for a in rows:
-                    title = (a.inner_text() or "").strip()
-                    href = a.get_attribute("href") or ""
+                new_on_this_page = 0
+                for r in rows:
+                    jid = r.get("jobId")
+                    if not jid or jid in seen_ids:
+                        continue
+                    seen_ids.add(jid)
+                    title = (r.get("title") or "").strip()
+                    href = (r.get("href") or "").strip()
                     if not title or not href:
                         continue
-                    url = href if href.startswith("http") else f"https://www.governmentjobs.com{href}"
-                    # Closing date is in a sibling cell — best-effort, may be empty.
+                    url = (href if href.startswith("http")
+                           else f"https://www.governmentjobs.com{href}")
+                    # Close date: NeoGov puts it in one of the .list-meta <li>s.
+                    # It's usually "Continuous" or "MM/DD/YYYY ...".
                     closes = ""
-                    try:
-                        close_el = a.locator("xpath=ancestor::tr//td[contains(@class,'closing-date')]")
-                        if close_el.count():
-                            closes = (close_el.first.inner_text() or "").strip()
-                    except Exception:
-                        pass
+                    for m in r.get("meta", []):
+                        if m.lower() == "continuous" or any(c.isdigit() for c in m[:10]):
+                            if "/" in m[:10] or m.lower() == "continuous":
+                                closes = m
+                                break
                     postings.append({"title": title, "url": url, "closes": closes})
+                    new_on_this_page += 1
 
-                # Advance pagination if a Next button is enabled.
-                next_btn = page.locator("a[aria-label='Next']")
-                if next_btn.count() == 0:
+                logger.info(f"  page {page_num}: {new_on_this_page} new postings, {len(postings)} total")
+                if new_on_this_page == 0:
                     break
-                cls = (next_btn.first.get_attribute("class") or "")
-                if "disabled" in cls:
-                    break
-                next_btn.first.click()
+
+                # Advance: prefer clicking Next; otherwise bump ?page= param.
+                next_btn = page.locator("a[aria-label='Go to next page'], a.next, a[aria-label='Next']")
+                advanced = False
+                if next_btn.count():
+                    cls = (next_btn.first.get_attribute("class") or "")
+                    if "disabled" not in cls.lower():
+                        try:
+                            next_btn.first.click()
+                            advanced = True
+                        except Exception:
+                            pass
+                if not advanced:
+                    page_num += 1
+                    nav_url = f"{PORTAL_URL}?page={page_num}"
+                    try:
+                        page.goto(nav_url, wait_until="networkidle", timeout=timeout_ms)
+                        advanced = True
+                    except Exception as e:
+                        logger.warning(f"  could not load page {page_num}: {e}")
+                        break
+                else:
+                    page_num += 1
         finally:
             browser.close()
 
-    # De-duplicate by URL (NeoGov sometimes lists the same posting twice).
-    seen = set()
-    deduped = []
-    for p in postings:
-        if p["url"] in seen:
-            continue
-        seen.add(p["url"])
-        deduped.append(p)
-    logger.info(f"Scraped {len(deduped)} unique postings from NeoGov")
-    return deduped
+    logger.info(f"Scraped {len(postings)} unique postings from NeoGov "
+                f"({len(seen_ids)} job-ids seen)")
+    return postings
 
 
 # ---------------------------------------------------------------------------
@@ -187,24 +237,34 @@ def _normalise(title):
 
 
 def match_postings_to_positions(conn, postings):
-    """For each posting, find the best matching county_position by title overlap.
+    """For each posting, find the best matching county_position by title prefix.
 
     A posting matches a position when the position's normalised token sequence
-    appears contiguously inside the posting's normalised tokens (so e.g.
-    "Office Assistant I" matches the catalog's "Office Assistant"). Returns a
-    list of {position_id, posting_title, posting_url, posting_close_date} dicts.
+    is a PREFIX of the posting's normalised tokens. So:
+      catalog "Animal Keeper I"      matches posting "Animal Keeper I (Wildlife)"  ✓
+      catalog "Office Assistant"     matches posting "Office Assistant - Probation" ✓
+      catalog "Equipment Operator"   does NOT match "Senior Equipment Operator"    ✗
+      catalog "Equipment Operator"   does NOT match "Seasonal Equipment Operator"  ✗
+
+    The strict-prefix rule keeps higher-rung postings (Senior X, Lead X) from
+    masquerading as entry-level openings — those rungs may eventually become
+    their own catalog rows when we track them, but for now Hiring-now only
+    surfaces matches at the entry level.
+
+    Returns a list of {position_id, posting_title, posting_url, posting_close_date} dicts.
     """
     positions = conn.execute(
         "SELECT id, title FROM county_positions"
     ).fetchall()
-    # Sort positions by descending token-length so multi-word matches win first
-    # (e.g. "Office Assistant - Healthcare" beats "Office Assistant" when both apply).
+    # Sort by descending token-length so the most specific catalog title wins
+    # (e.g. "Office Assistant - Healthcare" beats plain "Office Assistant").
     indexed = sorted(
         [(p["id"], p["title"], _normalise(p["title"])) for p in positions],
         key=lambda x: -len(x[2]),
     )
 
     matched = []
+    skipped_higher_rung = 0
     for posting in postings:
         post_tokens = _normalise(posting["title"])
         if not post_tokens:
@@ -213,14 +273,9 @@ def match_postings_to_positions(conn, postings):
         for pid, ptitle, ptokens in indexed:
             if not ptokens:
                 continue
-            # Substring match: every token of the catalog title appears, in order,
-            # somewhere in the posting title.
             n = len(ptokens)
-            for i in range(len(post_tokens) - n + 1):
-                if post_tokens[i:i + n] == ptokens:
-                    best = (pid, ptitle)
-                    break
-            if best:
+            if len(post_tokens) >= n and post_tokens[:n] == ptokens:
+                best = (pid, ptitle)
                 break
         if best:
             matched.append({
@@ -230,8 +285,15 @@ def match_postings_to_positions(conn, postings):
                 "posting_close_date": posting.get("closes") or None,
             })
             logger.debug(f"  matched: {posting['title']!r} -> {best[1]!r}")
+        else:
+            # Heuristic flag: if the posting starts with a known higher-rung
+            # modifier, count it for diagnostics (it's intentionally unmatched).
+            if post_tokens and post_tokens[0] in {"senior", "lead", "supervising",
+                                                   "assistant", "deputy", "chief"}:
+                skipped_higher_rung += 1
     logger.info(
-        f"Matched {len(matched)} of {len(postings)} postings to catalog positions"
+        f"Matched {len(matched)} of {len(postings)} postings to catalog positions "
+        f"({skipped_higher_rung} higher-rung postings intentionally skipped)"
     )
     return matched
 

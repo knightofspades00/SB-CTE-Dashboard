@@ -181,6 +181,10 @@ SB-CTE-Dashboard/
 │   ├── programs.py                 ← /api/programs, /api/programs/<id>
 │   └── jobs.py                     ← /api/jobs?pathway_id=<id>, /api/positions/<id>
 │
+├── scripts/
+│   ├── register-refresh-task.ps1   ← Self-installing Windows Task Scheduler entry for the daily refresh
+│   └── refresh-postings.sh         ← Linux/macOS cron wrapper for the daily refresh
+│
 ├── services/
 │   └── refresh_postings.py         ← Daily NeoGov scrape → current_postings (Playwright + JSON fallback)
 │
@@ -210,6 +214,8 @@ SB-CTE-Dashboard/
 | GET | `/api/programs/<id>` | One program with its positions and the school pathways tied to it |
 | GET | `/api/jobs?pathway_id=<id>` | County positions for a pathway's CTE program, with ladder steps |
 | GET | `/api/positions/<id>` | A single position with full MQ + ladder |
+| GET | `/api/refresh-status` | Freshness + per-program counts for the live "Hiring now" overlay |
+| GET | `/programs` | Server-rendered browse page of all 10 county CTE programs (anchor-linkable, print-friendly) |
 
 ---
 
@@ -295,18 +301,48 @@ Two ways to populate it:
 NeoGov's portal renders job listings entirely via client-side JavaScript, so we need a headless browser. Playwright handles it:
 
 ```bash
-# One-time install of Playwright + Chromium
+# One-time install of Playwright + Chromium (~150 MB)
 pip install playwright
 playwright install chromium
 
-# Each refresh:
+# Manual refresh any time:
 python services/refresh_postings.py
+
+# Dry-run (show matches but do not touch the DB):
+python services/refresh_postings.py --print
 ```
 
-Schedule this to run once a day via:
+Verified output against the real portal: walks all paginated postings (~222 at any given time), matches them to the 42 catalog classifications by strict title prefix, and intentionally skips higher-rung postings (Senior X, Lead X, Supervising X) so the Hiring-now pill only fires for entry-level openings students can realistically apply to.
 
-- **Windows Task Scheduler** — create a Basic Task → daily → Action: "Start a program" → Program: `python.exe`, Arguments: `services/refresh_postings.py`, Start in: project folder.
-- **Linux / macOS cron** — `0 6 * * * cd /path/to/SB-CTE-Dashboard && /path/to/venv/bin/python services/refresh_postings.py >> /var/log/cte-refresh.log 2>&1`
+#### Schedule it to run daily
+
+**Windows Task Scheduler** — a self-installing PowerShell script ships in `scripts/`:
+
+```powershell
+# Register (default daily at 06:00 local time):
+pwsh -ExecutionPolicy Bypass -File scripts\register-refresh-task.ps1
+
+# Custom time:
+pwsh -ExecutionPolicy Bypass -File scripts\register-refresh-task.ps1 -Time 07:30
+
+# Remove:
+pwsh -ExecutionPolicy Bypass -File scripts\register-refresh-task.ps1 -Remove
+```
+
+Logs are written to `scripts/refresh.log`. Inspect with:
+
+```powershell
+Get-ScheduledTaskInfo -TaskName "Pathways-to-Positions-Refresh"
+Get-Content scripts\refresh.log -Tail 20
+```
+
+**Linux / macOS cron** — use the included wrapper script. `crontab -e` and add:
+
+```cron
+0 6 * * * /path/to/SB-CTE-Dashboard/scripts/refresh-postings.sh
+```
+
+The wrapper activates the venv if present, runs the refresh, and appends to `scripts/refresh.log`.
 
 ### Option B — Hand-edited JSON
 
