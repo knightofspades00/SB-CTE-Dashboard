@@ -189,9 +189,12 @@ SB-CTE-Dashboard/
 │   └── jobs.py                     ← /api/jobs?pathway_id=<id>, /api/positions/<id>
 │
 ├── .github/workflows/
-│   └── refresh-hiring.yml          ← Daily Playwright scrape in GitHub Actions, commits the JSON
+│   ├── refresh-hiring.yml          ← Daily Playwright scrape, commits currently_hiring.json
+│   └── pages.yml                   ← Build static site + deploy to GitHub Pages
 │
 ├── scripts/
+│   ├── build_static.py             ← Pre-bake /api/* responses into docs/data/*.json for Pages
+│
 │   ├── register-refresh-task.ps1   ← Self-installing Windows Task Scheduler entry for the daily refresh
 │   └── refresh-postings.sh         ← Linux/macOS cron wrapper for the daily refresh
 │
@@ -275,9 +278,28 @@ When the county publishes a new MQ revision or adds a classification, edit `POSI
 
 ## Production deployment
 
-Three flavours, pick the one that fits.
+Four flavours, pick the one that fits.
 
-### A — Render (cheapest path to a real URL)
+### A — GitHub Pages (recommended for SBCUSD demo)
+
+The repo includes `scripts/build_static.py`, which pre-bakes every `/api/*` response into a JSON file under `docs/`. The bundled `.github/workflows/pages.yml` workflow runs that builder on a daily cron (right after the hiring refresh) and publishes `docs/` to Pages via the official `actions/deploy-pages` flow.
+
+To enable:
+
+1. In repo **Settings → Pages**, set **Source** to *"GitHub Actions"*. (Nothing else to configure.)
+2. Push to `main`. The workflow runs `database/bootstrap.py` → `services/refresh_postings.py` (live Playwright scrape) → `scripts/build_static.py` → uploads `docs/` → deploys to `<user>.github.io/<repo>/`.
+
+Trade-offs:
+
+- ✅ **Free**, no account aside from GitHub, never sleeps, CDN-cached globally
+- ✅ Auto-deploys every push + daily refresh = "Hiring now" overlay stays current
+- ✅ Works with custom domains via Pages settings
+- ⚠️ Data is "fresh as of the last build" (rebuilds daily). No real-time API surface.
+- ⚠️ No future room for per-user features (saved favorites, counselor notes). For that, use Render below.
+
+The frontend (`static/js/app.js`) is dual-mode: when the build script injects `window.P2P_STATIC_BASE = "."` into the rendered HTML, `apiFetch()` rewrites `/api/*` → `data/*.json`. Otherwise it hits the live Flask backend. Same JS, both targets.
+
+### B — Render (path to a real Flask URL)
 
 The repo includes a `render.yaml` Blueprint. One-time setup:
 
@@ -289,7 +311,7 @@ The repo includes a `render.yaml` Blueprint. One-time setup:
 
 The included **GitHub Actions workflow** (`.github/workflows/refresh-hiring.yml`) runs the heavy Playwright scrape in CI on a daily cron, writes `database/currently_hiring.json`, and commits it. Render auto-redeploys on push, so the "Hiring now" overlay stays current without paying for Render's cron tier. Free end-to-end.
 
-### B — Any container host (Fly.io, Azure Web Apps, Cloud Run, self-hosted)
+### C — Any container host (Fly.io, Azure Web Apps, Cloud Run, self-hosted)
 
 ```bash
 docker build -t pathways-to-positions .
@@ -301,7 +323,7 @@ docker run -p 8000:8000 \
 
 The image bootstraps the SQLite DB at build time so the first request is instant. Mount `database/` to persist `currently_hiring.json` between rebuilds.
 
-### C — Bare metal / VM
+### D — Bare metal / VM
 
 ```bash
 # Linux / macOS

@@ -96,9 +96,33 @@ const el = {
 };
 
 // ── Utilities ────────────────────────────────────────
+// apiFetch is dual-mode: when window.P2P_STATIC_BASE is set (GitHub Pages
+// build), it rewrites /api/* URLs to pre-baked /data/*.json paths. Otherwise
+// it hits the live Flask backend at /api/*.
+function staticUrlFor(apiUrl, base) {
+  let m;
+  if (apiUrl === '/api/schools/full')      return `${base}/data/schools-full.json`;
+  if (apiUrl === '/api/schools')           return `${base}/data/schools.json`;
+  if ((m = apiUrl.match(/^\/api\/schools\/(\d+)\/pathways$/)))
+                                           return `${base}/data/schools/${m[1]}-pathways.json`;
+  if (apiUrl === '/api/programs')          return `${base}/data/programs.json`;
+  if ((m = apiUrl.match(/^\/api\/programs\/(\d+)$/)))
+                                           return `${base}/data/programs/${m[1]}.json`;
+  if (apiUrl === '/api/pathways')          return `${base}/data/pathways.json`;
+  if ((m = apiUrl.match(/^\/api\/jobs\?pathway_id=(\d+)$/)))
+                                           return `${base}/data/jobs/${m[1]}.json`;
+  if ((m = apiUrl.match(/^\/api\/positions\/(\d+)$/)))
+                                           return `${base}/data/positions/${m[1]}.json`;
+  if (apiUrl === '/api/careers')           return `${base}/data/careers.json`;
+  if (apiUrl === '/api/refresh-status')    return `${base}/data/refresh-status.json`;
+  return apiUrl;
+}
+
 async function apiFetch(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`API error ${res.status} at ${url}`);
+  const base = window.P2P_STATIC_BASE;
+  const realUrl = base ? staticUrlFor(url, base) : url;
+  const res = await fetch(realUrl);
+  if (!res.ok) throw new Error(`API error ${res.status} at ${realUrl}`);
   return res.json();
 }
 

@@ -1,0 +1,70 @@
+name: Deploy to GitHub Pages
+
+# Builds the dashboard as a static site (no Flask runtime) and publishes
+# docs/ to GitHub Pages. Runs on every push to main AND on a daily cron so
+# the live "Hiring now" overlay stays fresh.
+#
+# Setup once in the repo Settings → Pages:
+#   - Source: "GitHub Actions"
+# Nothing else to configure; the official actions/deploy-pages handles the rest.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Daily at 13:30 UTC = 06:30 Pacific (PDT). Runs 30 minutes after the
+    # refresh-hiring workflow so it picks up the committed JSON.
+    - cron: '30 13 * * *'
+  workflow_dispatch: {}
+
+# Pages-specific permissions per the actions/deploy-pages docs.
+permissions:
+  contents: read
+  pages:    write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies + Playwright Chromium
+        run: |
+          pip install -r requirements.txt playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Refresh hiring overlay (live scrape)
+        run: |
+          python database/bootstrap.py
+          python services/refresh_postings.py || echo "Scrape failed; falling back to committed JSON"
+
+      - name: Build static site
+        run: python scripts/build_static.py
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
