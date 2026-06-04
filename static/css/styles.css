@@ -2138,17 +2138,50 @@ select:disabled {
     margin: 0.5rem 0 0.4rem;
 }
 
-/* ── TOP-LEFT: brand + chip filter ─────────────────────────── */
-.p2p-widget--top-left {
+/* ── TOP-CENTER: brand + chip filter.
+   Centered horizontally so the left drawer can slide out to its full
+   height without being covered. ─────────────────────────── */
+.p2p-widget--top-center {
     top: 0.75rem;
-    left: 0.75rem;
+    left: 50%;
     right: auto;
-    max-width: 480px;
-    min-width: 360px;
-    padding: 0.7rem 0.85rem 0.6rem;
+    transform: translateX(-50%);
+    max-width: min(780px, calc(100vw - 30rem));   /* leave room for stats/legend */
+    min-width: 0;
+    padding: 0.55rem 0.85rem 0.5rem;
     background: linear-gradient(135deg, rgba(110, 21, 39, 0.95) 0%, rgba(74, 14, 26, 0.94) 100%);
     color: #fff;
     border: 1px solid rgba(212, 160, 18, 0.35);
+}
+
+/* Tighter inner layout for the centered brand bar. */
+.p2p-widget--top-center .p2p-brand {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+.p2p-widget--top-center .p2p-brand-tag {
+    margin-bottom: 0;
+    align-self: center;
+}
+.p2p-widget--top-center .p2p-brand h1 {
+    font-size: 1.1rem;
+    margin: 0;
+}
+.p2p-widget--top-center .p2p-brand-sub {
+    margin-top: 0;
+    font-size: 0.62rem;
+    color: rgba(255, 255, 255, 0.55);
+    flex-basis: 100%;
+    line-height: 1.25;
+}
+.p2p-widget--top-center .p2p-chip-bar {
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+}
+.p2p-widget--top-center .p2p-brand-actions {
+    margin-top: 0.3rem;
 }
 
 .p2p-brand-tag {
@@ -2511,10 +2544,10 @@ select:disabled {
     color: #fff;
     border: none;
     border-radius: 8px;
-    padding: 0.45rem 0.4rem;
+    padding: 0.55rem 0.4rem;
     cursor: pointer;
     font-family: var(--p2p-fs-sans);
-    font-size: 0.66rem;
+    font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -2522,11 +2555,13 @@ select:disabled {
     align-self: center;
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    height: 88px;
+    gap: 0.4rem;
+    /* min-height instead of fixed height so text never gets clipped. */
+    min-height: 110px;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
     margin: 0 0.3rem;
+    white-space: nowrap;
 }
 .p2p-drawer-tab:hover {
     background: var(--p2p-mar-mid);
@@ -2577,9 +2612,11 @@ select:disabled {
 
 /* ── Responsive — drawers become bottom sheets on narrow viewports ── */
 @media (max-width: 900px) {
-    .p2p-widget--top-left {
+    .p2p-widget--top-center {
         max-width: calc(100vw - 1.5rem);
         min-width: 0;
+        left: 0.75rem;
+        transform: none;
     }
     .p2p-widget--top-right {
         top: auto;
@@ -2615,8 +2652,8 @@ select:disabled {
 
 /* Narrow viewport for top-right stats (also prevents overlap with brand). */
 @media (max-width: 1100px) {
-    .p2p-widget--top-left {
-        max-width: 360px;
+    .p2p-widget--top-center {
+        max-width: calc(100vw - 22rem);
     }
     .p2p-widget--top-right {
         top: 0.5rem;
