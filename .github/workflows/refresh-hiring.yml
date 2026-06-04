@@ -1,0 +1,80 @@
+name: Refresh hiring overlay
+
+# Runs the Playwright scrape against governmentjobs.com/careers/sanbernardino
+# once a day, writes the matches into database/currently_hiring.json, and
+# commits the result. The hosted dashboard auto-redeploys on push and picks
+# up the new JSON during its bootstrap step.
+#
+# Render's free tier can't run Chromium (memory + binary size), so we run
+# the heavy job here in CI for free, then ship a small JSON to the server.
+
+on:
+  schedule:
+    # Daily at 13:00 UTC = 06:00 Pacific (PDT) / 05:00 PST.
+    # Matches the Windows Task Scheduler default in scripts/register-refresh-task.ps1
+    - cron: '0 13 * * *'
+  workflow_dispatch: {}   # also allow manual runs from the Actions tab
+
+permissions:
+  contents: write   # required to commit the updated JSON
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          # We need a write token attached for the commit step below.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies + Playwright Chromium
+        run: |
+          pip install -r requirements.txt playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Initialise SQLite DB (needed by the matcher)
+        run: python database/bootstrap.py
+
+      - name: Run the live scrape (writes to current_postings in the DB)
+        run: python services/refresh_postings.py
+
+      - name: Export current_postings as currently_hiring.json
+        # Pull what we just wrote back out as JSON. The deploy bootstrap reads
+        # this file on every redeploy to repopulate current_postings on the
+        # hosted instance.
+        run: |
+          python - <<'PY'
+          import json, sqlite3, sys
+          conn = sqlite3.connect('database/cte_dashboard.db')
+          conn.row_factory = sqlite3.Row
+          rows = conn.execute('''
+              SELECT posting_title AS title, posting_url AS url,
+                     COALESCE(posting_close_date, '') AS closes
+              FROM current_postings
+              ORDER BY posting_title
+          ''').fetchall()
+          with open('database/currently_hiring.json', 'w', encoding='utf-8') as f:
+              json.dump([dict(r) for r in rows], f, indent=2)
+              f.write('\n')
+          print(f'Wrote {len(rows)} live postings to database/currently_hiring.json')
+          PY
+
+      - name: Commit the refreshed JSON if it changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet database/currently_hiring.json; then
+            echo "No changes — skipping commit."
+            exit 0
+          fi
+          git add database/currently_hiring.json
+          git commit -m "chore(hiring): refresh overlay $(date -u '+%Y-%m-%d')"
+          git push

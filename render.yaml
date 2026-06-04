@@ -1,0 +1,37 @@
+# Render Blueprint — one-click deploy.
+# See https://render.com/docs/blueprint-spec
+#
+# To deploy:
+#   1. Push this repo to a fork on your GitHub.
+#   2. Sign in at render.com and pick "New +" → "Blueprint".
+#   3. Point Render at this repo. It reads render.yaml and provisions everything.
+#   4. Set the FLASK_SECRET_KEY env var (see envVars below) — Render will
+#      generate one if you leave generateValue: true.
+#   5. First boot runs `python database/bootstrap.py` to seed the SQLite DB.
+
+services:
+  - type: web
+    name: pathways-to-positions
+    runtime: python
+    plan: free   # 512 MB RAM, sleeps after 15 min inactivity, $0/month
+    region: oregon   # closest US west region
+    branch: main
+    autoDeploy: true
+    buildCommand: |
+      pip install -r requirements.txt gunicorn
+      python database/bootstrap.py
+    startCommand: gunicorn --workers 2 --bind 0.0.0.0:$PORT 'app:create_app()'
+    healthCheckPath: /health
+    disk:
+      name: sqlite-data
+      mountPath: /opt/render/project/src/database
+      sizeGB: 1   # plenty for the SQLite file + xlsx + cached postings
+    envVars:
+      - key: FLASK_SECRET_KEY
+        generateValue: true   # Render auto-generates a strong secret
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: database/cte_dashboard.db
+      - key: PYTHONUNBUFFERED
+        value: "1"

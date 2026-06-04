@@ -1,7 +1,5 @@
 .env
 database/*.db
-database/CTE_Connections.xlsx
-database/currently_hiring.json
 __pycache__/
 *.py[cod]
 venv/
@@ -11,3 +9,9 @@ Thumbs.db
 *.log
 .idea/
 .vscode/
+scripts/refresh.log
+# CTE_Connections.xlsx is intentionally tracked so fresh deploys can bootstrap
+# the schools/pathways/careers tables without manual setup. Remove this comment
+# (and add the path back above) if the repo ever needs to go public.
+# database/currently_hiring.json is tracked so the GitHub Actions daily
+# refresh can commit it and the deployed instance picks it up on redeploy.

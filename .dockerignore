@@ -1,0 +1,21 @@
+# Files the Dockerfile should NOT copy into the image.
+.git
+.github
+.venv
+venv
+__pycache__
+*.py[cod]
+*.log
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Local-only state that the container regenerates on boot.
+database/cte_dashboard.db
+scripts/refresh.log
+
+# Big stuff that has no place in the image.
+node_modules
+*.tar
+*.zip

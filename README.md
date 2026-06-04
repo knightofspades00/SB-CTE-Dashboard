@@ -100,7 +100,8 @@ This section covers setup, configuration, architecture, and deployment.
 ## First-time setup
 
 ```bash
-# 1. Clone or copy the project folder
+# 1. Clone the repo
+git clone https://github.com/<your-fork>/SB-CTE-Dashboard.git
 cd SB-CTE-Dashboard
 
 # 2. Create and activate virtual environment
@@ -114,26 +115,26 @@ pip install -r requirements.txt
 # 4. Set up environment variables
 cp .env.example .env              # or: copy .env.example .env (Windows)
 
-# 5. Copy the city spreadsheet into the database folder
-# Rename it to: database/CTE_Connections.xlsx
+# 5. One-shot bootstrap — initialises DB, imports schools/pathways/careers
+#    from the bundled xlsx, applies SBCUSD coordinates, seeds the county
+#    catalog (programs, positions, MQs, ladders), and reads the most recent
+#    currently_hiring.json if present.
+python database/bootstrap.py
 
-# 6. Initialise the database
-python database/init_db.py
-
-# 7. Import school + pathway data from the spreadsheet
-python database/import_data.py
-
-# 8. Geocode school locations (one-time, uses Nominatim — no key required)
-python database/geocode_schools.py
-
-# 9. Import the county catalog (programs, positions, MQs, career ladders)
-python database/import_county_data.py
-
-# 10. Run the app
+# 6. Run the app
 python app.py
 ```
 
 The app will be available at `http://localhost:5000`.
+
+Individual steps (still available for advanced workflows):
+
+```bash
+python database/init_db.py            # schema only
+python database/import_data.py        # school + pathway data from xlsx
+python database/geocode_schools.py    # coords (Nominatim + SBCUSD overrides)
+python database/import_county_data.py # county catalog seed
+```
 
 ---
 
@@ -164,14 +165,20 @@ SB-CTE-Dashboard/
 ├── config/
 │   └── settings.py                 ← FLASK_* + DATABASE_PATH
 │
+├── Dockerfile                      ← Production container (gunicorn + bundled DB seed)
+├── .dockerignore
+├── render.yaml                     ← Render Blueprint (one-click deploy)
+│
 ├── database/
 │   ├── schema.sql                  ← Table definitions
 │   ├── connection.py               ← Shared get_db() helper
 │   ├── init_db.py                  ← Creates / migrates schema
+│   ├── bootstrap.py                ← One-shot first-deploy initialiser (idempotent)
 │   ├── import_data.py              ← Loads schools/pathways/careers from CTE_Connections.xlsx
 │   ├── import_county_data.py       ← Loads 10 programs, 42 positions, MQs, ladders
-│   ├── geocode_schools.py          ← One-time: lat/lng for every school via Nominatim
-│   ├── CTE_Connections.xlsx        ← City spreadsheet — not in version control
+│   ├── geocode_schools.py          ← Lat/lng for every school (Nominatim + SBCUSD overrides)
+│   ├── CTE_Connections.xlsx        ← School/pathway data — committed (private repo)
+│   ├── currently_hiring.json       ← Daily refresh output, committed by GitHub Actions
 │   └── cte_dashboard.db            ← SQLite database — not in version control
 │
 ├── routes/
@@ -180,6 +187,9 @@ SB-CTE-Dashboard/
 │   ├── careers.py                  ← /api/careers
 │   ├── programs.py                 ← /api/programs, /api/programs/<id>
 │   └── jobs.py                     ← /api/jobs?pathway_id=<id>, /api/positions/<id>
+│
+├── .github/workflows/
+│   └── refresh-hiring.yml          ← Daily Playwright scrape in GitHub Actions, commits the JSON
 │
 ├── scripts/
 │   ├── register-refresh-task.ps1   ← Self-installing Windows Task Scheduler entry for the daily refresh
@@ -265,16 +275,47 @@ When the county publishes a new MQ revision or adds a classification, edit `POSI
 
 ## Production deployment
 
+Three flavours, pick the one that fits.
+
+### A — Render (cheapest path to a real URL)
+
+The repo includes a `render.yaml` Blueprint. One-time setup:
+
+1. Sign in at [render.com](https://render.com) and click **New +** → **Blueprint**.
+2. Point it at your fork of this repo.
+3. Render reads `render.yaml`, provisions the web service, attaches a 1 GB persistent disk for the SQLite file, and auto-generates the `FLASK_SECRET_KEY`. No manual config required.
+4. Build step runs `python database/bootstrap.py` which initialises the DB, imports schools/pathways, applies SBCUSD coordinate overrides, seeds the county catalog, and reads the most recent `currently_hiring.json` if present.
+5. First deploy takes ~3 minutes. After that the dashboard is live on `<your-slug>.onrender.com`.
+
+The included **GitHub Actions workflow** (`.github/workflows/refresh-hiring.yml`) runs the heavy Playwright scrape in CI on a daily cron, writes `database/currently_hiring.json`, and commits it. Render auto-redeploys on push, so the "Hiring now" overlay stays current without paying for Render's cron tier. Free end-to-end.
+
+### B — Any container host (Fly.io, Azure Web Apps, Cloud Run, self-hosted)
+
+```bash
+docker build -t pathways-to-positions .
+docker run -p 8000:8000 \
+  -e FLASK_SECRET_KEY="$(openssl rand -hex 32)" \
+  -v "$PWD/database:/app/database" \
+  pathways-to-positions
+```
+
+The image bootstraps the SQLite DB at build time so the first request is instant. Mount `database/` to persist `currently_hiring.json` between rebuilds.
+
+### C — Bare metal / VM
+
 ```bash
 # Linux / macOS
+pip install gunicorn
+python database/bootstrap.py
 gunicorn -w 4 -b 0.0.0.0:8000 "app:create_app()"
 
 # Windows
 pip install waitress
+python database/bootstrap.py
 waitress-serve --port=8000 "app:create_app()"
 ```
 
-Set `FLASK_ENV=production` (or simply omit it — production is the default) before deploying.
+Set `FLASK_ENV=production` (or just omit it — production is the default) and `FLASK_SECRET_KEY` to something random and long.
 
 ---
 
