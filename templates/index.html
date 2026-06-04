@@ -31,6 +31,7 @@
          MOBILE TOP BAR (phones only, ≤ 700px viewport)
     ========================= -->
     <header class="p2p-mobile-bar" id="mobile-bar" role="banner">
+        <img class="p2p-mobile-logo" src="{{ url_for('static', filename='images/logo-sbcusd.svg') }}" alt="SBCUSD" width="28" height="28">
         <h1 class="p2p-mobile-title">Pathways&nbsp;to&nbsp;<em>Positions</em></h1>
         <span class="p2p-mobile-hiring" id="mobile-hiring" hidden>● <span id="mobile-hiring-n">0</span></span>
         <button class="p2p-hamburger" id="hamburger-btn" type="button" aria-label="Open menu" aria-expanded="false">
@@ -72,6 +73,11 @@
             <div class="p2p-legend-grid p2p-legend-grid--mobile" id="mobile-legend-grid"></div>
         </div>
         <a href="{{ url_for('programs.render_programs_page') }}" class="p2p-mobile-action">Browse all programs →</a>
+        <div class="p2p-mobile-logos">
+            <img src="{{ url_for('static', filename='images/logo-sbcusd.svg') }}" alt="SBCUSD" width="32" height="32" title="SBCUSD">
+            <img src="{{ url_for('static', filename='images/logo-county.svg') }}" alt="County of San Bernardino" width="32" height="32" title="County of San Bernardino">
+            <img src="{{ url_for('static', filename='images/logo-avatech.svg') }}" alt="AniVation-Tech Academy" width="32" height="32" title="AniVation-Tech Academy">
+        </div>
     </aside>
 
     <!-- ========================
@@ -81,8 +87,9 @@
     ========================= -->
     <header class="p2p-widget p2p-widget--top-center" id="brand-bar">
         <div class="p2p-brand-row">
-            <span class="p2p-brand-tag">SBCUSD × County of San Bernardino</span>
+            <img class="p2p-brand-logo" src="{{ url_for('static', filename='images/logo-sbcusd.svg') }}" alt="SBCUSD" width="40" height="40">
             <h1>Pathways to <em>Positions</em></h1>
+            <img class="p2p-brand-logo" src="{{ url_for('static', filename='images/logo-county.svg') }}" alt="County of San Bernardino" width="40" height="40">
             <a href="{{ url_for('programs.render_programs_page') }}" class="p2p-nav-link">Browse all programs →</a>
         </div>
         <nav class="p2p-chip-bar" id="chip-bar" aria-label="Filter map by CTE program">
@@ -192,9 +199,20 @@
          BOTTOM-LEFT footer pill
     ========================= -->
     <div class="p2p-widget p2p-widget--bottom-left p2p-footer-widget">
-        <span class="p2p-footer-tag p2p-footer-tag--lead">AniVation-Tech Academy</span>
-        <span class="p2p-footer-tag">SBCUSD</span>
-        <span class="p2p-footer-tag">County of San Bernardino</span>
+        <span class="p2p-footer-logos">
+            <img class="p2p-footer-logo p2p-footer-logo--lead"
+                 src="{{ url_for('static', filename='images/logo-avatech.svg') }}"
+                 alt="AniVation-Tech Academy" width="24" height="24"
+                 title="AniVation-Tech Academy">
+            <img class="p2p-footer-logo"
+                 src="{{ url_for('static', filename='images/logo-sbcusd.svg') }}"
+                 alt="SBCUSD" width="22" height="22"
+                 title="San Bernardino City Unified School District">
+            <img class="p2p-footer-logo"
+                 src="{{ url_for('static', filename='images/logo-county.svg') }}"
+                 alt="County of San Bernardino" width="22" height="22"
+                 title="County of San Bernardino">
+        </span>
         <span class="p2p-footer-meta">
             <a href="https://www.governmentjobs.com/careers/sanbernardino" target="_blank" rel="noopener">governmentjobs.com/careers/sanbernardino</a>
             <span id="footer-refresh"></span>

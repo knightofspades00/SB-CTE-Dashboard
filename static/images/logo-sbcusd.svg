@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Placeholder wordmark for San Bernardino City Unified School District.
+  Maroon + gold are SBCUSD's brand colors (Cardinals).
+  Overwrite this file with the real SBCUSD cardinal logo when available;
+  same path, same name — no code change needed.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="SBCUSD">
+  <circle cx="50" cy="50" r="46" fill="#6e1527" stroke="#d4a012" stroke-width="3"/>
+  <text x="50" y="42" text-anchor="middle"
+        fill="#ffffff"
+        font-family="Fraunces, 'Times New Roman', Georgia, serif"
+        font-size="18" font-weight="700" letter-spacing="0.5">SBCUSD</text>
+  <line x1="22" y1="52" x2="78" y2="52" stroke="#d4a012" stroke-width="1"/>
+  <text x="50" y="68" text-anchor="middle"
+        fill="#d4a012"
+        font-family="'DM Sans', sans-serif"
+        font-size="6.5" font-weight="600" letter-spacing="1.5">CARDINALS</text>
+  <text x="50" y="80" text-anchor="middle"
+        fill="rgba(255,255,255,0.62)"
+        font-family="'DM Sans', sans-serif"
+        font-size="4.5" font-weight="500" letter-spacing="1.3">EST. 1854</text>
+</svg>

@@ -353,6 +353,27 @@ The app uses **Leaflet.js with OpenStreetMap tiles** — completely free, no API
 
 ---
 
+## Logos / branding
+
+Three partner marks ship with the project as placeholder SVGs at:
+
+```
+static/images/logo-sbcusd.svg     SBCUSD (San Bernardino City Unified)
+static/images/logo-county.svg     County of San Bernardino
+static/images/logo-avatech.svg    AniVation-Tech Academy (Arroyo Valley HS)
+```
+
+To swap in the real artwork, **overwrite the file** in place — same name, same dimensions (any square aspect, SVG/PNG/WebP all work) — and the brand bar, footer pill, and mobile menu pick it up automatically. No code change required.
+
+The placeholders are square-aspect badges sized for 22–40 px on screen. If you replace them with rectangular logos, adjust the relevant CSS:
+
+- `.p2p-brand-logo` (header) — 34 × 34, circular
+- `.p2p-footer-logo` (footer) — 22 × 22, circular, AniVation-Tech gets a 24 × 24 maroon ring
+- `.p2p-mobile-logo` (mobile top bar) — 28 × 28, circular
+- `.p2p-mobile-logos img` (mobile menu) — 32 × 32, circular
+
+---
+
 ## Live "Hiring now" overlay
 
 The catalog by itself shows the 42 entry-level classifications regardless of whether they are currently posting. To highlight roles that are actively recruiting on `governmentjobs.com/careers/sanbernardino` right now, the dashboard also maintains a small `current_postings` table that is refreshed daily by `services/refresh_postings.py`.
