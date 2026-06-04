@@ -2139,49 +2139,91 @@ select:disabled {
 }
 
 /* ── TOP-CENTER: brand + chip filter.
-   Centered horizontally so the left drawer can slide out to its full
-   height without being covered. ─────────────────────────── */
+   Slim two-row layout: brand line (tag + title + link) on top, single-row
+   scrollable chip bar below. No wrapping so the widget can never grow
+   into the drawer area. ─────────────────────────────────── */
 .p2p-widget--top-center {
     top: 0.75rem;
     left: 50%;
     right: auto;
     transform: translateX(-50%);
-    max-width: min(780px, calc(100vw - 30rem));   /* leave room for stats/legend */
+    max-width: min(820px, calc(100vw - 26rem));   /* leave room for stats/layers */
     min-width: 0;
-    padding: 0.55rem 0.85rem 0.5rem;
+    padding: 0.45rem 0.8rem 0.4rem;
     background: linear-gradient(135deg, rgba(110, 21, 39, 0.95) 0%, rgba(74, 14, 26, 0.94) 100%);
     color: #fff;
     border: 1px solid rgba(212, 160, 18, 0.35);
 }
 
-/* Tighter inner layout for the centered brand bar. */
-.p2p-widget--top-center .p2p-brand {
+.p2p-brand-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.6rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
-.p2p-widget--top-center .p2p-brand-tag {
+.p2p-brand-row .p2p-brand-tag {
+    flex-shrink: 0;
     margin-bottom: 0;
     align-self: center;
 }
-.p2p-widget--top-center .p2p-brand h1 {
-    font-size: 1.1rem;
+.p2p-brand-row h1 {
+    font-family: var(--p2p-fs-serif);
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: #fff;
+    line-height: 1.1;
     margin: 0;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.p2p-widget--top-center .p2p-brand-sub {
-    margin-top: 0;
+.p2p-brand-row h1 em {
+    color: var(--p2p-gold-b);
+    font-style: italic;
+}
+.p2p-brand-row .p2p-nav-link {
+    flex-shrink: 0;
+    background: rgba(240, 194, 48, 0.18);
+    border: 1px solid rgba(240, 194, 48, 0.32);
+    color: var(--p2p-gold-b);
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
     font-size: 0.62rem;
-    color: rgba(255, 255, 255, 0.55);
-    flex-basis: 100%;
-    line-height: 1.25;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    margin-left: auto;
 }
+.p2p-brand-row .p2p-nav-link:hover {
+    background: var(--p2p-gold-b);
+    color: var(--p2p-mar);
+}
+
 .p2p-widget--top-center .p2p-chip-bar {
-    margin-top: 0.4rem;
-    padding-top: 0.4rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0.35rem 0 0;
+    margin-top: 0.35rem;
+    background: transparent;
+    border-bottom: none;
+    gap: 0.3rem;
+    display: flex;
+    flex-wrap: nowrap;           /* never wrap chips */
+    overflow-x: auto;            /* horizontal scroll if too many */
+    overflow-y: hidden;
+    align-items: center;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(240, 194, 48, 0.4) transparent;
 }
-.p2p-widget--top-center .p2p-brand-actions {
-    margin-top: 0.3rem;
+.p2p-widget--top-center .p2p-chip-bar::-webkit-scrollbar { height: 4px; }
+.p2p-widget--top-center .p2p-chip-bar::-webkit-scrollbar-thumb {
+    background: rgba(240, 194, 48, 0.4);
+    border-radius: 2px;
+}
+.p2p-widget--top-center .p2p-chip {
+    flex-shrink: 0;             /* don't squish chips when bar is narrow */
 }
 
 .p2p-brand-tag {
@@ -2551,20 +2593,21 @@ select:disabled {
     color: #fff;
     border: none;
     border-radius: 8px;
-    padding: 0.55rem 0.4rem;
+    padding: 0.85rem 0.4rem;
     cursor: pointer;
     font-family: var(--p2p-fs-sans);
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
     align-self: center;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    /* min-height instead of fixed height so text never gets clipped. */
-    min-height: 110px;
+    /* Use min-height + auto height so the tab grows to fit any label. */
+    min-height: 140px;
+    height: auto;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
     margin: 0 0.3rem;

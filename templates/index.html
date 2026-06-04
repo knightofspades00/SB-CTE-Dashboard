@@ -28,21 +28,20 @@
     <div id="map" role="application" aria-label="Interactive map of SBCUSD high schools"></div>
 
     <!-- ========================
-         TOP-CENTER brand + chip filter widget
+         TOP-CENTER brand + chip filter widget.
+         Single-row brand text on top, single-row scrollable chips below.
+         No wrapping = no surprise vertical growth on narrow viewports.
     ========================= -->
     <header class="p2p-widget p2p-widget--top-center" id="brand-bar">
-        <div class="p2p-brand">
+        <div class="p2p-brand-row">
             <span class="p2p-brand-tag">SBCUSD × County of San Bernardino</span>
             <h1>Pathways to <em>Positions</em></h1>
-            <p class="p2p-brand-sub">Interactive GIS dashboard · SBCUSD high schools → County entry-level classifications</p>
+            <a href="{{ url_for('programs.render_programs_page') }}" class="p2p-nav-link">Browse all programs →</a>
         </div>
         <nav class="p2p-chip-bar" id="chip-bar" aria-label="Filter map by CTE program">
             <span class="p2p-chip-label">Filter:</span>
             <!-- chips injected by JS -->
         </nav>
-        <div class="p2p-brand-actions">
-            <a href="{{ url_for('programs.render_programs_page') }}" class="p2p-nav-link">Browse all programs →</a>
-        </div>
     </header>
 
     <!-- ========================
