@@ -2365,12 +2365,16 @@ select:disabled {
     height: 12px;
 }
 
-/* ── BOTTOM-RIGHT: layer controls + 10-color program legend ──── */
-.p2p-widget--bottom-right {
-    bottom: 0.75rem;
-    right: 0.75rem;
+/* ── TOP-LEFT (formerly bottom-right): layer controls + 10-color
+   program legend. Moved off the right edge so the right drawer doesn't
+   cover the bottom of the positions list. ─────────────────── */
+.p2p-widget--top-left {
+    top: 0.75rem;
+    left: 0.75rem;
+    right: auto;
+    bottom: auto;
     padding: 0.55rem 0.7rem 0.6rem;
-    max-width: 250px;
+    max-width: 260px;
     max-height: calc(100vh - 1.5rem);
     overflow-y: auto;
 }
@@ -2485,12 +2489,12 @@ select:disabled {
 }
 
 /* ── DRAWERS — slide-in overlays from each edge.
-   z-index 600 (below widgets at 700) so the bottom-right widget can
-   stay clickable when the right drawer is open. ─────────────── */
+   z-index 600 (below widgets at 700) so the top-left widget can stay
+   clickable when the left drawer is open. ─────────────────── */
 .p2p-drawer {
     position: absolute;
-    top:    11rem;     /* below the brand bar's bottom */
-    bottom: 11rem;     /* above the legend / footer widgets */
+    top:    4rem;      /* below the centered brand bar */
+    bottom: 4rem;      /* above the bottom-left footer pills */
     z-index: 600;
     width: 330px;
     max-width: 92vw;
@@ -2498,7 +2502,10 @@ select:disabled {
     transition: transform 0.32s cubic-bezier(.4, 0, .2, 1);
 }
 .p2p-drawer--left {
-    left: 0.75rem;
+    /* shift left drawer further right so the top-left widget stays usable */
+    left: 16.5rem;
+}
+.p2p-drawer--left {
     flex-direction: row;
     transform: translateX(calc(-100% + 38px));
 }

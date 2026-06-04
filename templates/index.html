@@ -53,10 +53,12 @@
     </aside>
 
     <!-- ========================
-         BOTTOM-RIGHT widget: layer controls + legend (combined so the
-         right drawer can't cover them when it's open)
+         TOP-LEFT widget: layer controls + legend.
+         Moved off the right side so the positions list in the right drawer
+         isn't blocked. Top-left is free because the brand bar lives at
+         top-center now.
     ========================= -->
-    <aside class="p2p-widget p2p-widget--bottom-right p2p-legend-widget" id="legend" aria-label="Map layer controls and legend">
+    <aside class="p2p-widget p2p-widget--top-left p2p-legend-widget" id="legend" aria-label="Map layer controls and legend">
         <div class="p2p-widget-title">Layers</div>
         <div class="p2p-layer-toggles">
             <label class="p2p-layer-toggle">
