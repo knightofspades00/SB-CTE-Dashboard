@@ -194,6 +194,11 @@ a:hover { text-decoration: underline; }
     background: #e8eaed;
 }
 
+/* Soften the OSM basemap so the data layers stand out (close to CARTO light). */
+.basemap-muted {
+    filter: grayscale(0.85) brightness(1.08) contrast(0.9);
+}
+
 #map-legend {
     position: absolute;
     top: 0.75rem;

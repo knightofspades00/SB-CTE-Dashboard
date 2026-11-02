@@ -200,14 +200,14 @@ function initMap() {
     attributionControl: true,
   }).setView([34.138, -117.275], 12);
 
-  // Light/desaturated CARTO basemap reads better as a data layer base than
-  // standard OSM. Falls back to OSM via the tile layer's error handler.
+  // Standard OSM tiles, softened by the .basemap-muted CSS rule so the data
+  // layers stay readable. (CARTO's free basemap now requires an API key.)
   L.tileLayer(
-    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
-      subdomains: 'abcd',
+      className: 'basemap-muted',
     }
   ).addTo(state.map);
 
